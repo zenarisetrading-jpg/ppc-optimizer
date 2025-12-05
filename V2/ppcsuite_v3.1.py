@@ -2678,7 +2678,7 @@ elif st.session_state['current_module'] == 'optimizer':
     # Show upload status banner
     st.success(f"✅ **Main Report:** {st.session_state.data_files['main_report_name']}")
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.session_state.data_files['id_mapping_name']:
             st.info(f"🆔 **ID Mapping:** {st.session_state.data_files['id_mapping_name']}")
@@ -2692,10 +2692,6 @@ elif st.session_state['current_module'] == 'optimizer':
             st.warning("🏷️ **SKU Mapping:** Not uploaded")
     
     with col3:
-        if st.button("📖 Tab Guide"):
-            st.session_state['show_guide'] = not st.session_state.get('show_guide', False)
-    
-    with col4:
         if st.button("🔄 Upload Different Files"):
             st.session_state.data_files = {
                 'main_report': None,
@@ -2706,41 +2702,6 @@ elif st.session_state['current_module'] == 'optimizer':
                 'sku_mapping_name': None
             }
             st.rerun()
-    
-    # Show guide if toggled
-    if st.session_state.get('show_guide', False):
-        with st.expander("📖 Tab Guide", expanded=True):
-            st.markdown("""
-            ### Quick Reference
-            
-            **Main Report (Required)**
-            - Search Term Report from Amazon Ads
-            - Required for all analysis
-            
-            **ID Mapping (Optional)**
-            - Bulk Upload Template from Amazon Bulk Operations
-            - Required for: Bid Updates with IDs
-            - Without it: Bid updates may fail validation
-            
-            **SKU Mapping (Optional)**
-            - Purchased Product Report from Amazon Reports
-            - Required for: Harvest Campaigns
-            - Without it: SKUs will be set to "SKU_NEEDED"
-            
-            ---
-            
-            **Tab Overview:**
-            - **Overview** - Performance summary
-            - **Harvest** - High-performing terms to promote
-            - **Negatives** - Poor performers to exclude
-            - **Bids** - Optimize existing bids
-            - **Cannibalization** - Detect internal competition
-            - **Velocity** - Track trends over time
-            - **Simulation** - Forecast impact
-            - **Actions** - Export bulk files
-            
-            [View Full Guide](https://github.com/zenarisetrading-jpg/ppc-optimizer)
-            """)
     
     st.divider()
     
@@ -3656,11 +3617,160 @@ elif st.session_state['current_module'] == 'optimizer':
 # ==========================================
 
 elif st.session_state['current_module'] == 'readme':
-    st.title("📖 Guide")
-    st.markdown("### V3.3 Update Notes")
-    st.markdown("- **Bug Fix:** Fixed unknown search terms in report using iterrows().")
-    st.markdown("- **UI:** Added full text report display directly to dashboard.")
-    st.markdown("- **Safety:** Empty metric values now default to 0 instead of causing a crash.")
+    st.title("📖 PPC Optimizer Guide")
+    
+    st.markdown("## 🚀 Quick Start")
+    
+    with st.expander("📁 File Upload", expanded=True):
+        st.markdown("""
+        ### Required Files
+        
+        **✅ Main Report (Required)**
+        - **File:** Search Term Report
+        - **Source:** Amazon Ads → Reports → Search Term Report
+        - **Purpose:** Required for all analysis
+        
+        ### Optional Files
+        
+        **🆔 ID Mapping (Recommended)**
+        - **File:** Bulk Upload Template
+        - **Source:** Amazon Ads → Bulk Operations → Download → Sponsored Products Campaigns
+        - **Purpose:** Bid updates with Keyword/Product Targeting IDs
+        - **Without it:** Bid updates may fail validation
+        
+        **🏷️ SKU Mapping (Recommended)**
+        - **File:** Purchased Product Report
+        - **Source:** Amazon Ads → Reports → Purchased Product Report
+        - **Purpose:** Harvest campaigns with automatic SKU assignment
+        - **Without it:** SKUs will be set to "SKU_NEEDED"
+        """)
+    
+    st.divider()
+    
+    st.markdown("## 📊 Tab Overview")
+    
+    tabs_info = {
+        "📊 Overview": "Performance summary and analysis report",
+        "💎 Harvest": "High-performing search terms to promote to exact match",
+        "🛑 Negatives": "Poor performers to add as negative keywords",
+        "💰 Bids": "Optimize bids for existing keywords/targets",
+        "⚠️ Cannibalization": "Detect same ASIN/keyword in multiple campaigns",
+        "📈 Velocity": "Track keyword performance trends over time",
+        "🎯 Simulation": "Forecast impact of bid changes and harvest campaigns",
+        "🚀 Actions": "Generate and export bulk files for upload"
+    }
+    
+    for tab_name, description in tabs_info.items():
+        with st.expander(f"{tab_name}"):
+            st.markdown(f"**{description}**")
+            
+            if "Harvest" in tab_name:
+                st.markdown("""
+                - Identify high-performing search terms
+                - Prepare for campaign creation
+                - Send to Actions tab for bulk file generation
+                """)
+            elif "Negatives" in tab_name:
+                st.markdown("""
+                - Identify poor-performing terms
+                - Generate negative keywords bulk file
+                - **Auto-validated** with error separation
+                - Download valid rows for immediate upload
+                """)
+            elif "Bids" in tab_name:
+                st.markdown("""
+                - Optimize bids based on ROAS
+                - Direct (Exact/PT) and Aggregated (Broad/Phrase/Auto)
+                - **Requires ID Mapping** for full functionality
+                - **Auto-validated** with error separation
+                - Download valid rows for immediate upload
+                """)
+            elif "Actions" in tab_name:
+                st.markdown("""
+                - Generate harvest campaign bulk files
+                - **Requires SKU Mapping** for automatic SKU assignment
+                - **Auto-validated** with error separation
+                - Download valid rows for immediate upload
+                """)
+            elif "Cannibalization" in tab_name:
+                st.markdown("""
+                - View wasted spend
+                - Estimate savings potential
+                - Identify campaigns to consolidate
+                """)
+            elif "Velocity" in tab_name:
+                st.markdown("""
+                - **Requires 2+ uploads** to show trends
+                - Rising/Falling/Stable indicators
+                - Track performance over time
+                """)
+            elif "Simulation" in tab_name:
+                st.markdown("""
+                - Projected spend and sales
+                - Risk analysis (High/Medium/Low)
+                - Validate optimization decisions
+                """)
+    
+    st.divider()
+    
+    st.markdown("## ✅ Validation System")
+    
+    st.markdown("""
+    All bulk files are **auto-validated** before download:
+    
+    **What Gets Validated:**
+    - UPDATE operations have required IDs
+    - Product Targeting has expressions (not keyword text)
+    - Keywords have text and match types
+    - SKUs are not placeholders (SKU_NEEDED)
+    - Campaign/Ad Group IDs are numeric
+    
+    **Validation Output:**
+    - ✅ **Valid Rows** - Ready for Amazon upload
+    - ❌ **Error Rows** - Download to fix manually
+    - **Error details** - Specific row numbers and issues
+    """)
+    
+    st.divider()
+    
+    st.markdown("## 💡 Pro Tips")
+    
+    st.markdown("""
+    1. **Always download fresh ID mapping** before bid updates
+    2. **Use Purchased Product Report** to avoid SKU_NEEDED errors
+    3. **Upload Search Term Report regularly** for accurate trends
+    4. **Fix errors before uploading** to Amazon (or they'll be rejected)
+    5. **Download valid rows only** for fastest uploads
+    6. **Keep mapping files updated** to avoid validation errors
+    """)
+    
+    st.divider()
+    
+    st.markdown("## 🔄 Typical Workflow")
+    
+    st.markdown("""
+    ### Weekly Optimization Cycle
+    
+    **1. Download from Amazon:**
+    - Search Term Report
+    - Bulk upload template (for IDs)
+    - Purchased Product Report (if creating campaigns)
+    
+    **2. Upload to Optimizer:**
+    - Main: Search Term Report
+    - Optional: ID mapping file
+    - Optional: SKU mapping file
+    
+    **3. Generate & Download:**
+    - Negatives → Download valid rows → Upload to Amazon
+    - Bids → Download valid rows → Upload to Amazon
+    - Harvest → Download valid rows → Upload to Amazon
+    
+    **4. Fix Errors (if any):**
+    - Download error rows
+    - Fix manually in Excel
+    - Re-upload to Amazon
+    """)
 
 elif st.session_state['current_module'] == 'creator':
     st.title("🚀 LaunchPad: Campaign Creator")
