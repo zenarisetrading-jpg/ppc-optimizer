@@ -2629,8 +2629,40 @@ elif st.session_state['current_module'] == 'optimizer':
         
         st.divider()
         
-        # Continue button
+        # Show upload summary
+        files_uploaded = []
         if main_file:
+            files_uploaded.append("✅ Main Report")
+        if id_file:
+            files_uploaded.append("✅ ID Mapping")
+        if sku_file:
+            files_uploaded.append("✅ SKU Mapping")
+        
+        if files_uploaded:
+            st.success(f"**Uploaded:** {', '.join(files_uploaded)}")
+        
+        # Guide link
+        with st.expander("📖 Need Help? View Tab Guide"):
+            st.markdown("""
+            ### Quick Start Guide
+            
+            **Required:**
+            - ✅ **Main Report** - Search Term Report from Amazon Ads
+            
+            **Optional (but recommended):**
+            - 🆔 **ID Mapping** - For bid updates with IDs
+            - 🏷️ **SKU Mapping** - For harvest campaigns without SKU_NEEDED errors
+            
+            **After uploading Main Report**, you can:
+            - Continue to analysis immediately
+            - Or upload optional files first for full functionality
+            
+            [View Full Tab Guide](https://github.com/zenarisetrading-jpg/ppc-optimizer/blob/main/README.md)
+            """)
+        
+        # Continue button - only requires main file
+        if main_file:
+            st.info("💡 **Tip:** You can upload ID Mapping and SKU Mapping files now, or add them later from the status banner.")
             if st.button("✅ Continue to Analysis", type="primary", use_container_width=True):
                 st.rerun()
         else:
@@ -2646,7 +2678,7 @@ elif st.session_state['current_module'] == 'optimizer':
     # Show upload status banner
     st.success(f"✅ **Main Report:** {st.session_state.data_files['main_report_name']}")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.session_state.data_files['id_mapping_name']:
             st.info(f"🆔 **ID Mapping:** {st.session_state.data_files['id_mapping_name']}")
@@ -2660,6 +2692,10 @@ elif st.session_state['current_module'] == 'optimizer':
             st.warning("🏷️ **SKU Mapping:** Not uploaded")
     
     with col3:
+        if st.button("📖 Tab Guide"):
+            st.session_state['show_guide'] = not st.session_state.get('show_guide', False)
+    
+    with col4:
         if st.button("🔄 Upload Different Files"):
             st.session_state.data_files = {
                 'main_report': None,
@@ -2670,6 +2706,41 @@ elif st.session_state['current_module'] == 'optimizer':
                 'sku_mapping_name': None
             }
             st.rerun()
+    
+    # Show guide if toggled
+    if st.session_state.get('show_guide', False):
+        with st.expander("📖 Tab Guide", expanded=True):
+            st.markdown("""
+            ### Quick Reference
+            
+            **Main Report (Required)**
+            - Search Term Report from Amazon Ads
+            - Required for all analysis
+            
+            **ID Mapping (Optional)**
+            - Bulk Upload Template from Amazon Bulk Operations
+            - Required for: Bid Updates with IDs
+            - Without it: Bid updates may fail validation
+            
+            **SKU Mapping (Optional)**
+            - Purchased Product Report from Amazon Reports
+            - Required for: Harvest Campaigns
+            - Without it: SKUs will be set to "SKU_NEEDED"
+            
+            ---
+            
+            **Tab Overview:**
+            - **Overview** - Performance summary
+            - **Harvest** - High-performing terms to promote
+            - **Negatives** - Poor performers to exclude
+            - **Bids** - Optimize existing bids
+            - **Cannibalization** - Detect internal competition
+            - **Velocity** - Track trends over time
+            - **Simulation** - Forecast impact
+            - **Actions** - Export bulk files
+            
+            [View Full Guide](https://github.com/zenarisetrading-jpg/ppc-optimizer)
+            """)
     
     st.divider()
     
