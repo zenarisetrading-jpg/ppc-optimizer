@@ -2585,9 +2585,71 @@ elif st.session_state['current_module'] == 'optimizer':
                 if not neg_df.empty:
                     st.metric("Estimated Savings", f"${neg_df['Spend'].sum():,.2f}")
                     st.dataframe(neg_df)
+                    
+                    # Generate bulk file
                     neg_bulk = generate_negatives_direct(neg_df)
-                    with st.expander("👁️ Preview Bulk File"): st.dataframe(neg_bulk)
-                    st.download_button("📥 Download Negatives Bulk File", to_excel_download(neg_bulk, "negatives.xlsx"), "negatives.xlsx")
+                    
+                    # AUTO-VALIDATE
+                    validation = validate_bulk_file(neg_bulk)
+                    
+                    # Extract error rows
+                    error_rows = set()
+                    for error in validation['errors']:
+                        import re
+                        match = re.search(r'Row (\d+):', error)
+                        if match:
+                            error_rows.add(int(match.group(1)) - 2)
+                    
+                    valid_rows_df = neg_bulk.drop(index=list(error_rows)) if error_rows else neg_bulk
+                    error_rows_df = neg_bulk.loc[list(error_rows)] if error_rows else pd.DataFrame()
+                    
+                    # Show validation summary
+                    if validation['errors']:
+                        st.error(f"🚨 **{len(validation['errors'])} Critical Errors Found**")
+                        st.markdown(f"**{len(error_rows_df)} rows have errors**")
+                    else:
+                        st.success("✅ **No errors found!** File ready for upload.")
+                    
+                    st.divider()
+                    
+                    # Tabs for valid vs error rows
+                    tab1, tab2 = st.tabs([
+                        f"✅ Valid Rows ({len(valid_rows_df)})",
+                        f"❌ Error Rows ({len(error_rows_df)})"
+                    ])
+                    
+                    with tab1:
+                        if not valid_rows_df.empty:
+                            st.success(f"✅ {len(valid_rows_df)} rows ready for upload")
+                            timestamp = datetime.now().strftime("%Y%m%d")
+                            st.download_button(
+                                "📥 Download Valid Negatives",
+                                to_excel_download(valid_rows_df, f"negatives_valid_{timestamp}.xlsx"),
+                                f"negatives_valid_{timestamp}.xlsx",
+                                use_container_width=True,
+                                type="primary"
+                            )
+                            with st.expander("👁️ Preview"): st.dataframe(valid_rows_df)
+                        else:
+                            st.warning("⚠️ No valid rows")
+                    
+                    with tab2:
+                        if not error_rows_df.empty:
+                            st.error(f"❌ {len(error_rows_df)} rows need fixing")
+                            timestamp = datetime.now().strftime("%Y%m%d")
+                            st.download_button(
+                                "📥 Download Error Rows",
+                                to_excel_download(error_rows_df, f"negatives_errors_{timestamp}.xlsx"),
+                                f"negatives_errors_{timestamp}.xlsx",
+                                use_container_width=True
+                            )
+                            with st.expander("📋 View Errors"):
+                                for error in validation['errors'][:10]:
+                                    st.text(error)
+                                if len(validation['errors']) > 10:
+                                    st.caption(f"... and {len(validation['errors']) - 10} more")
+                        else:
+                            st.success("✅ No errors!")
                 else:
                     st.info("No negative keyword opportunities found.")
 
@@ -2627,14 +2689,70 @@ elif st.session_state['current_module'] == 'optimizer':
                 final_agg, skip_a = generate_bids_direct(agg_df)
                 final_combined = pd.concat([final_direct, final_agg])
                 
-                # Store in outputs for combined bulk file generation
-                outputs['Bids_Bulk'] = final_combined
-                
                 if final_combined.empty:
                     st.warning("⚠️ No valid bid updates generated. Check if 'Campaign Name' is present in your upload.")
                 else:
-                    with st.expander("👁️ Preview Bulk File"): st.dataframe(final_combined)
-                    st.download_button("📥 Download All Bid Updates", to_excel_download(final_combined, "bid_optimizations.xlsx"), "bid_optimizations.xlsx")
+                    # AUTO-VALIDATE
+                    validation = validate_bulk_file(final_combined)
+                    
+                    # Extract error rows
+                    error_rows = set()
+                    for error in validation['errors']:
+                        import re
+                        match = re.search(r'Row (\d+):', error)
+                        if match:
+                            error_rows.add(int(match.group(1)) - 2)
+                    
+                    valid_rows_df = final_combined.drop(index=list(error_rows)) if error_rows else final_combined
+                    error_rows_df = final_combined.loc[list(error_rows)] if error_rows else pd.DataFrame()
+                    
+                    # Show validation summary
+                    if validation['errors']:
+                        st.error(f"🚨 **{len(validation['errors'])} Critical Errors Found**")
+                        st.markdown(f"**{len(error_rows_df)} rows have errors**")
+                    else:
+                        st.success("✅ **No errors found!** File ready for upload.")
+                    
+                    st.divider()
+                    
+                    # Tabs for valid vs error rows
+                    tab1, tab2 = st.tabs([
+                        f"✅ Valid Rows ({len(valid_rows_df)})",
+                        f"❌ Error Rows ({len(error_rows_df)})"
+                    ])
+                    
+                    with tab1:
+                        if not valid_rows_df.empty:
+                            st.success(f"✅ {len(valid_rows_df)} rows ready for upload")
+                            timestamp = datetime.now().strftime("%Y%m%d")
+                            st.download_button(
+                                "📥 Download Valid Bid Updates",
+                                to_excel_download(valid_rows_df, f"bids_valid_{timestamp}.xlsx"),
+                                f"bids_valid_{timestamp}.xlsx",
+                                use_container_width=True,
+                                type="primary"
+                            )
+                            with st.expander("👁️ Preview"): st.dataframe(valid_rows_df)
+                        else:
+                            st.warning("⚠️ No valid rows")
+                    
+                    with tab2:
+                        if not error_rows_df.empty:
+                            st.error(f"❌ {len(error_rows_df)} rows need fixing")
+                            timestamp = datetime.now().strftime("%Y%m%d")
+                            st.download_button(
+                                "📥 Download Error Rows",
+                                to_excel_download(error_rows_df, f"bids_errors_{timestamp}.xlsx"),
+                                f"bids_errors_{timestamp}.xlsx",
+                                use_container_width=True
+                            )
+                            with st.expander("📋 View Errors"):
+                                for error in validation['errors'][:10]:
+                                    st.text(error)
+                                if len(validation['errors']) > 10:
+                                    st.caption(f"... and {len(validation['errors']) - 10} more")
+                        else:
+                            st.success("✅ No errors!")
 
             
             with t5:
@@ -3221,130 +3339,69 @@ elif st.session_state['current_module'] == 'optimizer':
                     with col2: pid = st.text_input("Portfolio ID (Optional)")
                     
                     if st.button("🎯 Generate Harvest Bulk File"):
-                        res = generate_bulk_from_harvest(h_df, pid, budget, datetime.now())
-                        st.download_button("📥 Download Harvest Bulk File", to_excel_download(res, "harvest_creation.xlsx"), "harvest_creation.xlsx")
-                    
-                    # COMBINED BULK FILE SECTION
-                    st.divider()
-                    st.markdown("### 📦 Combined Bulk File (All Actions)")
-                    st.caption("Merge Harvest + Negatives + Bid Updates into one file for bulk upload")
-                    
-                    if st.button("🔄 Generate Combined Bulk File", type="primary"):
-                        # Gather all three files
-                        harvest_bulk = generate_bulk_from_harvest(h_df, pid, budget, datetime.now()) if 'harvest_payload' in st.session_state else pd.DataFrame()
-                        neg_df = outputs.get('Negatives', pd.DataFrame())
+                        harvest_bulk = generate_bulk_from_harvest(h_df, pid, budget, datetime.now())
                         
-                        # Use pre-generated bid bulk file from Bids tab (already has correct IDs)
-                        bids_bulk = outputs.get('Bids_Bulk', pd.DataFrame())
+                        # AUTO-VALIDATE
+                        validation = validate_bulk_file(harvest_bulk)
                         
-                        # Merge with validation
-                        combined_bulk, validation = merge_bulk_files(harvest_bulk, neg_df, bids_bulk)
+                        # Extract error rows
+                        error_rows = set()
+                        for error in validation['errors']:
+                            import re
+                            match = re.search(r'Row (\d+):', error)
+                            if match:
+                                error_rows.add(int(match.group(1)) - 2)
                         
-                        if not combined_bulk.empty:
-                            # AUTO-VALIDATE against Amazon requirements
-                            amazon_validation = validate_bulk_file(combined_bulk)
-                            
-                            # Show row counts
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric("🌾 Harvest Rows", validation['harvest_count'])
-                            col2.metric("🛑 Negative Rows", validation['negatives_count'])
-                            col3.metric("💰 Bid Update Rows", validation['bids_count'])
-                            
-                            st.divider()
-                            
-                            # Extract error row numbers from validation errors
-                            error_rows = set()
-                            for error in amazon_validation['errors']:
-                                # Extract row number from error message (format: "Row 123: ...")
-                                import re
-                                match = re.search(r'Row (\d+):', error)
-                                if match:
-                                    error_rows.add(int(match.group(1)) - 2)  # Convert to 0-indexed
-                            
-                            # Split dataframe into valid and error rows
-                            valid_rows_df = combined_bulk.drop(index=list(error_rows)) if error_rows else combined_bulk
-                            error_rows_df = combined_bulk.loc[list(error_rows)] if error_rows else pd.DataFrame()
-                            
-                            # Show validation summary
-                            if amazon_validation['errors']:
-                                st.error(f"🚨 **{len(amazon_validation['errors'])} Critical Errors Found**")
-                                st.markdown(f"**{len(error_rows_df)} rows have errors** that will cause Amazon upload failure")
-                            else:
-                                st.success("✅ **No critical errors found!** All rows pass Amazon validation.")
-                            
-                            st.divider()
-                            
-                            # Create tabs for valid vs error rows
-                            tab1, tab2 = st.tabs([
-                                f"✅ Valid Rows ({len(valid_rows_df)})",
-                                f"❌ Rows with Errors ({len(error_rows_df)})"
-                            ])
-                            
-                            with tab1:
-                                st.markdown("### Valid Rows (Ready for Upload)")
-                                if not valid_rows_df.empty:
-                                    st.success(f"✅ {len(valid_rows_df)} rows are ready for Amazon upload")
-                                    
-                                    # Download button for valid rows only
-                                    timestamp = datetime.now().strftime("%Y%m%d")
-                                    st.download_button(
-                                        "📥 Download Valid Rows Only",
-                                        to_excel_download(valid_rows_df, f"ppc_optimizer_valid_{timestamp}.xlsx"),
-                                        f"ppc_optimizer_valid_{timestamp}.xlsx",
-                                        use_container_width=True,
-                                        type="primary"
-                                    )
-                                    
-                                    with st.expander("👁️ Preview Valid Rows"):
-                                        st.dataframe(valid_rows_df, use_container_width=True)
-                                else:
-                                    st.warning("⚠️ No valid rows found. All rows have errors.")
-                            
-                            with tab2:
-                                st.markdown("### Rows with Errors (Need Fixing)")
-                                if not error_rows_df.empty:
-                                    st.error(f"❌ {len(error_rows_df)} rows need to be fixed before upload")
-                                    st.markdown("**Common issues:**")
-                                    st.markdown("- UPDATE operations missing Keyword ID or Product Targeting ID")
-                                    st.markdown("- Product Targeting missing expression")
-                                    st.markdown("- Keywords missing text or match type")
-                                    
-                                    # Download button for error rows
-                                    timestamp = datetime.now().strftime("%Y%m%d")
-                                    st.download_button(
-                                        "📥 Download Error Rows (to fix manually)",
-                                        to_excel_download(error_rows_df, f"ppc_optimizer_errors_{timestamp}.xlsx"),
-                                        f"ppc_optimizer_errors_{timestamp}.xlsx",
-                                        use_container_width=True,
-                                        type="secondary"
-                                    )
-                                    
-                                    with st.expander("👁️ Preview Error Rows"):
-                                        st.dataframe(error_rows_df, use_container_width=True)
-                                    
-                                    # Show first 10 errors as examples
-                                    with st.expander(f"📋 View Error Details ({len(amazon_validation['errors'])} total)"):
-                                        st.markdown("**First 10 errors:**")
-                                        for error in amazon_validation['errors'][:10]:
-                                            st.text(error)
-                                        if len(amazon_validation['errors']) > 10:
-                                            st.caption(f"... and {len(amazon_validation['errors']) - 10} more errors")
-                                else:
-                                    st.success("✅ No error rows!")
-                            
-                            st.divider()
-                            
-                            # Download all (combined) button
-                            st.markdown("### Download All Rows (Combined)")
-                            timestamp = datetime.now().strftime("%Y%m%d")
-                            st.download_button(
-                                "📥 Download All Rows (Valid + Errors)",
-                                to_excel_download(combined_bulk, f"ppc_optimizer_combined_{timestamp}.xlsx"),
-                                f"ppc_optimizer_combined_{timestamp}.xlsx",
-                                use_container_width=True
-                            )
+                        valid_rows_df = harvest_bulk.drop(index=list(error_rows)) if error_rows else harvest_bulk
+                        error_rows_df = harvest_bulk.loc[list(error_rows)] if error_rows else pd.DataFrame()
+                        
+                        # Show validation summary
+                        if validation['errors']:
+                            st.error(f"🚨 **{len(validation['errors'])} Critical Errors Found**")
+                            st.markdown(f"**{len(error_rows_df)} rows have errors**")
                         else:
-                            st.warning("⚠️ No data available to merge. Generate harvest, negatives, or bid files first.")
+                            st.success("✅ **No errors found!** File ready for upload.")
+                        
+                        st.divider()
+                        
+                        # Tabs for valid vs error rows
+                        tab1, tab2 = st.tabs([
+                            f"✅ Valid Rows ({len(valid_rows_df)})",
+                            f"❌ Error Rows ({len(error_rows_df)})"
+                        ])
+                        
+                        with tab1:
+                            if not valid_rows_df.empty:
+                                st.success(f"✅ {len(valid_rows_df)} rows ready for upload")
+                                timestamp = datetime.now().strftime("%Y%m%d")
+                                st.download_button(
+                                    "📥 Download Valid Harvest Campaigns",
+                                    to_excel_download(valid_rows_df, f"harvest_valid_{timestamp}.xlsx"),
+                                    f"harvest_valid_{timestamp}.xlsx",
+                                    use_container_width=True,
+                                    type="primary"
+                                )
+                                with st.expander("👁️ Preview"): st.dataframe(valid_rows_df)
+                            else:
+                                st.warning("⚠️ No valid rows")
+                        
+                        with tab2:
+                            if not error_rows_df.empty:
+                                st.error(f"❌ {len(error_rows_df)} rows need fixing")
+                                timestamp = datetime.now().strftime("%Y%m%d")
+                                st.download_button(
+                                    "📥 Download Error Rows",
+                                    to_excel_download(error_rows_df, f"harvest_errors_{timestamp}.xlsx"),
+                                    f"harvest_errors_{timestamp}.xlsx",
+                                    use_container_width=True
+                                )
+                                with st.expander("📋 View Errors"):
+                                    for error in validation['errors'][:10]:
+                                        st.text(error)
+                                    if len(validation['errors']) > 10:
+                                        st.caption(f"... and {len(validation['errors']) - 10} more")
+                            else:
+                                st.success("✅ No errors!")
                 
                 else:
                     st.warning("⚠️ No harvest data pending. Go to '💎 Harvest' tab and click 'Prepare'.")
