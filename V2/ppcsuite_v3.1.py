@@ -2499,7 +2499,128 @@ elif st.session_state['current_module'] == 'optimizer':
         "HARVEST_EFFICIENCY_MULTIPLIER": 1.30  # 30% efficiency gain from exact match (more aggressive)
     }
 
-    upl = st.file_uploader("Upload 'SP Search Term Report' (from Bulk Download)", type=["csv", "xlsx"])
+    # ═══════════════════════════════════════════════════════════════
+    # SIDEBAR: CENTRALIZED DATA MANAGER
+    # ═══════════════════════════════════════════════════════════════
+    with st.sidebar:
+        st.header("📁 Data Manager")
+        st.caption("Upload all required files in one place")
+        
+        # Initialize session state for data files
+        if 'data_files' not in st.session_state:
+            st.session_state.data_files = {
+                'main_report': None,
+                'main_report_name': None,
+                'id_mapping': None,
+                'id_mapping_name': None,
+                'sku_mapping': None,
+                'sku_mapping_name': None
+            }
+        
+        st.divider()
+        
+        # 1. MAIN REPORT (Required)
+        st.subheader("✅ Main Report")
+        st.caption("**Required** for all analysis")
+        main_file = st.file_uploader(
+            "Search Term Report",
+            type=["csv", "xlsx"],
+            key="sidebar_main",
+            help="Download from Amazon Ads → Reports → Search Term Report"
+        )
+        
+        if main_file:
+            st.session_state.data_files['main_report'] = main_file
+            st.session_state.data_files['main_report_name'] = main_file.name
+            st.success(f"✓ {main_file.name}")
+            st.caption(f"Size: {main_file.size / 1024:.1f} KB")
+        else:
+            if st.session_state.data_files['main_report_name']:
+                st.info(f"📄 {st.session_state.data_files['main_report_name']}")
+            else:
+                st.warning("⚠️ Not uploaded")
+        
+        st.divider()
+        
+        # 2. ID MAPPING (Optional - for Bids)
+        st.subheader("🆔 ID Mapping")
+        st.caption("**For:** Bid Updates")
+        id_file = st.file_uploader(
+            "Bulk Upload Template",
+            type=["csv", "xlsx"],
+            key="sidebar_ids",
+            help="Download from Amazon Ads → Bulk Operations → Download → Sponsored Products Campaigns"
+        )
+        
+        if id_file:
+            st.session_state.data_files['id_mapping'] = id_file
+            st.session_state.data_files['id_mapping_name'] = id_file.name
+            st.success(f"✓ {id_file.name}")
+            st.caption(f"Size: {id_file.size / 1024:.1f} KB")
+        else:
+            if st.session_state.data_files['id_mapping_name']:
+                st.info(f"📄 {st.session_state.data_files['id_mapping_name']}")
+            else:
+                st.info("⚠️ Optional (recommended for bids)")
+                with st.expander("ℹ️ How to get"):
+                    st.markdown("""
+                    **Amazon Ads Console:**
+                    1. Go to **Bulk Operations**
+                    2. Click **Download**
+                    3. Select **Sponsored Products Campaigns**
+                    4. Download the file
+                    
+                    **Contains:** Keyword ID, Product Targeting ID, Campaign ID, Ad Group ID
+                    """)
+        
+        st.divider()
+        
+        # 3. SKU MAPPING (Optional - for Harvest)
+        st.subheader("🏷️ SKU Mapping")
+        st.caption("**For:** Harvest Campaigns")
+        sku_file = st.file_uploader(
+            "Purchased Product Report",
+            type=["csv", "xlsx"],
+            key="sidebar_skus",
+            help="Download from Amazon Ads → Reports → Purchased Product Report"
+        )
+        
+        if sku_file:
+            st.session_state.data_files['sku_mapping'] = sku_file
+            st.session_state.data_files['sku_mapping_name'] = sku_file.name
+            st.success(f"✓ {sku_file.name}")
+            st.caption(f"Size: {sku_file.size / 1024:.1f} KB")
+        else:
+            if st.session_state.data_files['sku_mapping_name']:
+                st.info(f"📄 {st.session_state.data_files['sku_mapping_name']}")
+            else:
+                st.info("⚠️ Optional (prevents SKU_NEEDED errors)")
+                with st.expander("ℹ️ How to get"):
+                    st.markdown("""
+                    **Amazon Ads Console:**
+                    1. Go to **Reports**
+                    2. Select **Purchased Product Report**
+                    3. Download the file
+                    
+                    **Contains:** Advertised SKU, ASIN mapping
+                    """)
+        
+        st.divider()
+        
+        # Clear all button
+        if st.button("🗑️ Clear All Files", use_container_width=True):
+            st.session_state.data_files = {
+                'main_report': None,
+                'main_report_name': None,
+                'id_mapping': None,
+                'id_mapping_name': None,
+                'sku_mapping': None,
+                'sku_mapping_name': None
+            }
+            st.rerun()
+
+    # Use sidebar file if available, otherwise fall back to main uploader
+    upl = st.session_state.data_files['main_report'] or st.file_uploader("Upload 'SP Search Term Report' (from Bulk Download)", type=["csv", "xlsx"])
     
     if upl:
         with st.spinner("Processing Segmentation & Aggregation..."):
@@ -2656,17 +2777,24 @@ elif st.session_state['current_module'] == 'optimizer':
             with t4:
                 st.subheader("💰 Bid Adjustments")
                 
-                # --- Map IDs from Bulk ---
-                st.markdown("#### 🆔 ID Mapping (Optional)")
-                st.caption("Upload 'Sponsored Products Campaigns' Bulk file to map IDs for Bids and Negatives.")
-                bulk_map_file = st.file_uploader("Upload Bulk File", type=["csv", "xlsx"], key="bid_id_map")
+                # --- Map IDs from Sidebar ---
+                st.markdown("#### 🆔 ID Mapping")
+                
+                # Check if ID mapping file is loaded in sidebar
+                bulk_map_file = st.session_state.data_files.get('id_mapping')
                 
                 if bulk_map_file:
+                    st.success(f"✅ Using: {st.session_state.data_files.get('id_mapping_name')}")
                     outputs, map_msg = enrich_bids_with_ids(outputs, bulk_map_file)
                     if "✅" in map_msg: 
                         st.success(map_msg)
                         neg_df = outputs.get('Negatives', pd.DataFrame()) 
-                    else: st.error(map_msg)
+                    else: 
+                        st.error(map_msg)
+                else:
+                    st.warning("⚠️ ID Mapping not uploaded")
+                    st.info("💡 Upload 'Bulk Upload Template' in the sidebar to enable bid updates with IDs")
+                    st.caption("Without ID mapping, bid updates may fail validation")
 
                 # --- Transparency Logic ---
                 st.divider()
@@ -3323,11 +3451,18 @@ elif st.session_state['current_module'] == 'optimizer':
                 st.subheader("🚀 Harvest Enrichment & Export")
                 if 'harvest_payload' in st.session_state:
                     h_df = st.session_state['harvest_payload']
-                    camp_file = st.file_uploader("Upload Campaigns File (Optional for SKU Map)", type=["csv", "xlsx"], key="enrich_upload")
+                    
+                    # Check if SKU mapping file is loaded in sidebar
+                    camp_file = st.session_state.data_files.get('sku_mapping')
+                    
                     if camp_file:
+                        st.success(f"✅ Using SKU Mapping: {st.session_state.data_files.get('sku_mapping_name')}")
                         h_df, msg = map_skus_from_file(h_df, camp_file)
                         st.session_state['harvest_payload'] = h_df
                         st.success(msg)
+                    else:
+                        st.info("💡 Upload 'Purchased Product Report' in sidebar for automatic SKU mapping")
+                        st.caption("Without SKU mapping, SKUs will be set to 'SKU_NEEDED'")
                     
                     if "New Bid" not in h_df.columns: h_df["New Bid"] = h_df["Cost Per Click (CPC)"] * 1.1
                     if "Advertised SKU" not in h_df.columns: h_df["Advertised SKU"] = "SKU_NEEDED"
