@@ -543,6 +543,18 @@ def merge_bulk_files(
     
     return combined, validation_report
 
+def extract_error_rows(validation_errors: list) -> set:
+    """
+    Extract row numbers from validation error messages.
+    Returns set of 0-indexed row numbers.
+    """
+    error_rows = set()
+    for error in validation_errors:
+        match = re.search(r'Row (\d+):', error)
+        if match:
+            error_rows.add(int(match.group(1)) - 2)  # Convert to 0-indexed
+    return error_rows
+
 def validate_bulk_file(df: pd.DataFrame) -> dict:
     """
     Validate bulk file against Amazon Advertising requirements.
@@ -2756,12 +2768,7 @@ elif st.session_state['current_module'] == 'optimizer':
                     validation = validate_bulk_file(neg_bulk)
                     
                     # Extract error rows
-                    error_rows = set()
-                    for error in validation['errors']:
-                        import re
-                        match = re.search(r'Row (\d+):', error)
-                        if match:
-                            error_rows.add(int(match.group(1)) - 2)
+                    error_rows = extract_error_rows(validation['errors'])
                     
                     valid_rows_df = neg_bulk.drop(index=list(error_rows)) if error_rows else neg_bulk
                     error_rows_df = neg_bulk.loc[list(error_rows)] if error_rows else pd.DataFrame()
@@ -2866,12 +2873,7 @@ elif st.session_state['current_module'] == 'optimizer':
                     validation = validate_bulk_file(final_combined)
                     
                     # Extract error rows
-                    error_rows = set()
-                    for error in validation['errors']:
-                        import re
-                        match = re.search(r'Row (\d+):', error)
-                        if match:
-                            error_rows.add(int(match.group(1)) - 2)
+                    error_rows = extract_error_rows(validation['errors'])
                     
                     valid_rows_df = final_combined.drop(index=list(error_rows)) if error_rows else final_combined
                     error_rows_df = final_combined.loc[list(error_rows)] if error_rows else pd.DataFrame()
@@ -3522,12 +3524,7 @@ elif st.session_state['current_module'] == 'optimizer':
                         validation = validate_bulk_file(harvest_bulk)
                         
                         # Extract error rows
-                        error_rows = set()
-                        for error in validation['errors']:
-                            import re
-                            match = re.search(r'Row (\d+):', error)
-                            if match:
-                                error_rows.add(int(match.group(1)) - 2)
+                        error_rows = extract_error_rows(validation['errors'])
                         
                         valid_rows_df = harvest_bulk.drop(index=list(error_rows)) if error_rows else harvest_bulk
                         error_rows_df = harvest_bulk.loc[list(error_rows)] if error_rows else pd.DataFrame()
