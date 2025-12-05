@@ -2550,9 +2550,7 @@ elif st.session_state['current_module'] == 'optimizer':
                 st.success("✓ Uploaded")
                 st.caption(f"{main_file.size / 1024:.1f} KB")
         
-        if main_file:
-            st.session_state.data_files['main_report'] = main_file
-            st.session_state.data_files['main_report_name'] = main_file.name
+        # Don't store in session state yet - wait for Continue button
         
         st.divider()
         
@@ -2574,9 +2572,7 @@ elif st.session_state['current_module'] == 'optimizer':
             else:
                 st.info("⚠️ Optional")
         
-        if id_file:
-            st.session_state.data_files['id_mapping'] = id_file
-            st.session_state.data_files['id_mapping_name'] = id_file.name
+        # Don't store in session state yet - wait for Continue button
         
         with st.expander("ℹ️ How to get ID Mapping file"):
             st.markdown("""
@@ -2611,9 +2607,7 @@ elif st.session_state['current_module'] == 'optimizer':
             else:
                 st.info("⚠️ Optional")
         
-        if sku_file:
-            st.session_state.data_files['sku_mapping'] = sku_file
-            st.session_state.data_files['sku_mapping_name'] = sku_file.name
+        # Don't store in session state yet - wait for Continue button
         
         with st.expander("ℹ️ How to get SKU Mapping file"):
             st.markdown("""
@@ -2657,13 +2651,22 @@ elif st.session_state['current_module'] == 'optimizer':
             - Continue to analysis immediately
             - Or upload optional files first for full functionality
             
-            [View Full Tab Guide](https://github.com/zenarisetrading-jpg/ppc-optimizer/blob/main/README.md)
+            Click **"📖 Readme / Guide"** in the sidebar for full documentation.
             """)
         
         # Continue button - only requires main file
         if main_file:
             st.info("💡 **Tip:** You can upload ID Mapping and SKU Mapping files now, or add them later from the status banner.")
             if st.button("✅ Continue to Analysis", type="primary", use_container_width=True):
+                # NOW store files in session state
+                st.session_state.data_files['main_report'] = main_file
+                st.session_state.data_files['main_report_name'] = main_file.name
+                if id_file:
+                    st.session_state.data_files['id_mapping'] = id_file
+                    st.session_state.data_files['id_mapping_name'] = id_file.name
+                if sku_file:
+                    st.session_state.data_files['sku_mapping'] = sku_file
+                    st.session_state.data_files['sku_mapping_name'] = sku_file.name
                 st.rerun()
         else:
             st.warning("⚠️ Please upload the Main Report to continue")
@@ -3706,9 +3709,35 @@ elif st.session_state['current_module'] == 'readme':
                 """)
             elif "Simulation" in tab_name:
                 st.markdown("""
-                - Projected spend and sales
-                - Risk analysis (High/Medium/Low)
-                - Validate optimization decisions
+                **Purpose:** Forecast the financial impact of your optimization decisions before implementing them.
+                
+                **What it simulates:**
+                - Bid changes (increases/decreases)
+                - Harvest campaigns (new exact match)
+                - Combined impact of all optimizations
+                
+                **Metrics forecasted:**
+                - Projected spend change ($)
+                - Projected sales impact ($)
+                - Projected ROAS change
+                - ROI estimates
+                
+                **Risk analysis:**
+                - **High risk** - Large bid changes or untested keywords
+                - **Medium risk** - Moderate changes with some data
+                - **Low risk** - Small adjustments to proven performers
+                
+                **How it works:**
+                - Uses historical performance data
+                - Applies elasticity models for bid changes
+                - Estimates volume gains for exact match harvest
+                - Conservative assumptions for safety
+                
+                **Best practices:**
+                - Review simulation before uploading bulk files
+                - Focus on low/medium risk changes first
+                - Monitor actual results vs forecast
+                - Adjust strategy based on outcomes
                 """)
     
     st.divider()
