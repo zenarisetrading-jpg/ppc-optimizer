@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S2C LaunchPad V3 (1:1 Logic Port)</title>
+    
+    <!-- React & Tailwind -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SheetJS for Excel Processing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        .glass-input { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); color: white; }
+        .glass-input:focus { border-color: #2dd4bf; outline: none; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const X = XLSX;
+
+        // ==========================================
+        // 1. CORE UTILS & LOGIC (PYTHON PORT)
+        // ==========================================
+
+        // Strict normalization for matching (matches Python's re.sub(r"[^a-z0-9]", "", text.lower()))
+        const normalizeText = (text) => String(text || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        
+        // Tokenizer for clustering
+        const getTokens = (text) => new Set(String(text || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(t => t.length > 2 && !t.startsWith('b0')));
+        
+        // Levenshtein Distance for Fuzzy Dedupe (1:1 with Python difflib ratio approximation)
+        const getSimilarity = (s1, s2) => {
+            const longer = s1.length > s2.length ? s1 : s2;
+            const shorter = s1.length > s2.length ? s2 : s1;
+            if (longer.length === 0) return 1.0;
+            const costs = new Array();
+            for (let i = 0; i <= shorter.length; i++) costs[i] = i;
+            for (let i = 1; i <= longer.length; i++) {
+                let prev = costs[0];
+                costs[0] = i;
+                for (let j = 1; j <= shorter.length; j++) {
+                    const temp = costs[j];
+                    if (s1[i - 1] === s2[j - 1]) costs[j] = prev;
+                    else costs[j] = Math.min(costs[j - 1], costs[j], prev) + 1;
+                    prev = temp;
+                }
+            }
+            return (longer.length - costs[shorter.length]) / longer.length;
+        };
+
+        const ALIAS_MAP = {
+            "Impressions": ["impressions", "impr"], "Clicks": ["clicks"], "Spend": ["spend", "cost"],
+            "Sales": ["7 day total sales", "sales", "total sales"], "Orders": ["7 day total orders", "orders"],
+            "Sales14": ["14 day total sales"], "Orders14": ["14 day total orders"],
+            "CPC": ["cpc", "cost per click"], "Campaign": ["campaign name", "campaign"], "AdGroup": ["ad group name", "ad group"],
+            "Term": ["customer search term", "search term", "query"], "Keyword": ["keyword text", "targeting", "keyword"],
+            "TargetingExpression": ["product targeting expression", "targeting expression"], "Match": ["match type"],
+            "CampaignId": ["campaign id"], "AdGroupId": ["ad group id"], "TargetingId": ["product targeting id", "targeting id", "keyword id"],
+            "SKU": ["advertised sku", "sku"], "Entity": ["entity"], "ASIN": ["advertised asin", "asin"]
+        };
+
+        const mapColumns = (data) => {
+            if (!data || !data.length) return { mapped: [], err: "Empty file" };
+            const headers = Object.keys(data[0]);
+            const normHeaders = {}; 
+            headers.forEach(h => normHeaders[normalizeText(h)] = h);
+
+            const mapping = {};
+            Object.keys(ALIAS_MAP).forEach(key => {
+                const aliases = ALIAS_MAP[key];
+                let found = null;
+                // Strict check then fuzzy check
+                for(let a of aliases) { if(normHeaders[normalizeText(a)]) { found = normHeaders[normalizeText(a)]; break; } }
+                if(!found) {
+                    for(let a of aliases) {
+                        const n = normalizeText(a);
+                        for(let realH of Object.keys(normHeaders)) { if(realH.includes(n)) { found = normHeaders[realH]; break; } }
+                        if(found) break;
+                    }
+                }
+                mapping[key] = found;
+            });
+
+            if(!mapping.Impressions || !mapping.Clicks || !mapping.Spend || !mapping.Campaign) 
+                return { mapped: [], err: `Missing Columns. Found: ${JSON.stringify(mapping)}` };
+
+            const mapped = data.map(row => {
+                const newRow = {};
+                Object.keys(mapping).forEach(k => { if(mapping[k]) newRow[k] = row[mapping[k]]; });
+                
+                // Clean Numerics (Robust)
+                ["Impressions","Clicks","Spend","Sales","Orders","Sales14","Orders14","CPC"].forEach(f => {
+                    let val = newRow[f];
+                    if (val === undefined || val === null) val = 0;
+                    if (typeof val === 'string') {
+                        // Remove currency symbols, preserve dots and negatives
+                        val = val.replace(/[^0-9.-]/g, '');
+                    }
+                    newRow[f] = parseFloat(val) || 0;
+                });
+
+                // Clean Text
+                newRow.CampaignId = String(newRow.CampaignId || "");
+                newRow.AdGroupId = String(newRow.AdGroupId || "");
+                newRow.TargetingId = String(newRow.TargetingId || "");
+                newRow.Term = String(newRow.Term || "").toLowerCase().trim();
+                newRow.Match = String(newRow.Match || "broad").toLowerCase();
+                
+                // Targeting logic
+                let t = newRow.Keyword;
+                if(newRow.TargetingExpression) t = newRow.TargetingExpression;
+                if(!t) t = newRow.Term;
+                newRow.Targeting = String(t).toLowerCase();
+                
+                return newRow;
+            });
+            return { mapped, err: null };
+        };
+
+        // ==========================================
+        // 2. UI ICONS
+        // ==========================================
+        const Icons = {
+            Home: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+            BarChart2: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+            PlusCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+            Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        };
+
+        // ==========================================
+        // 3. REACT COMPONENTS
+        // ==========================================
+
+        const App = () => {
+            const [page, setPage] = useState('home');
+            const [data, setData] = useState(null);
+            const [stats, setStats] = useState(null);
+            const [config, setConfig] = useState({
+                attribution: 7, clickThresh: 10, impThresh: 250, roasThresh: 2.5,
+                bleedClick: 15, bleedSpend: 5.0, alphaKw: 0.2, alphaPt: 0.2, alphaBroad: 0.15,
+                maxChange: 0.2, exploreBoost: 0.05, dedupeSim: 0.9
+            });
+            const [harvestPayload, setHarvestPayload] = useState([]);
+
+            const processData = () => {
+                if(!data) return;
+                
+                // 1. Attribution & Base Metrics
+                const use14 = config.attribution === 14;
+                const df = data.map(r => ({
+                    ...r,
+                    Sales_Attr: use14 ? (r.Sales14 || r.Sales) : r.Sales,
+                    Orders_Attr: use14 ? (r.Orders14 || r.Orders) : r.Orders
+                })).map(r => ({
+                    ...r,
+                    CTR: r.Impressions > 0 ? r.Clicks/r.Impressions : 0,
+                    CVR: r.Clicks > 0 ? r.Orders_Attr/r.Clicks : 0,
+                    ROAS: r.Spend > 0 ? r.Sales_Attr/r.Spend : 0
+                }));
+
+                // 2. Campaign Averages & Dynamic Thresholds
+                const campStats = {};
+                let totalCpc = 0; 
+                let cpcCount = 0;
+
+                df.forEach(r => {
+                    if(!campStats[r.Campaign]) campStats[r.Campaign] = { clicks:0, impr:0, spend:0, sales:0, orders:0, roasVals:[] };
+                    const c = campStats[r.Campaign];
+                    c.clicks += r.Clicks; c.impr += r.Impressions; c.spend += r.Spend; c.sales += r.Sales_Attr; c.orders += r.Orders_Attr;
+                    if(r.ROAS > 0) c.roasVals.push(r.ROAS);
+                    
+                    if(r.CPC > 0) {
+                        totalCpc += r.CPC;
+                        cpcCount++;
+                    }
+                });
+
+                // Calculate Dynamic Average CPC (critical for harvest filter)
+                const avgCpc = cpcCount > 0 ? totalCpc / cpcCount : 0.5;
+
+                Object.values(campStats).forEach(c => {
+                    c.ctr = c.impr > 0 ? c.clicks/c.impr : 0;
+                    c.cvr = c.clicks > 0 ? c.orders/c.clicks : 0;
+                    c.roasVals.sort((a,b)=>a-b);
+                    const mid = Math.floor(c.roasVals.length/2);
+                    c.medianRoas = c.roasVals.length ? (c.roasVals.length%2!==0 ? c.roasVals[mid] : (c.roasVals[mid-1]+c.roasVals[mid])/2) : 2.5;
+                });
+
+                // 3. Harvest Logic (Strict Port)
+                const autoPattern = /close-match|loose-match|substitutes|complements|category=|asin|b0/i;
+                const exactRows = df.filter(r => r.Match === 'exact');
+                const exactNormTerms = new Set(exactRows.map(r => normalizeText(r.Term)));
+
+                const calcQualityScore = (row) => {
+                    const c = campStats[row.Campaign] || {ctr:0, cvr:0, medianRoas:2.5};
+                    const ctrF = c.ctr > 0 ? Math.min(40, (row.CTR/c.ctr)*20) : 20;
+                    const cvrF = c.cvr > 0 ? Math.min(30, (row.CVR/c.cvr)*15) : 15;
+                    const volF = Math.min(20, Math.log1p(row.Clicks)*3);
+                    const roasF = (c.medianRoas>0 && row.ROAS>0) ? Math.min(10, (row.ROAS/c.medianRoas)*5) : 5;
+                    return (ctrF+cvrF+volF+roasF).toFixed(1);
+                };
+
+                // Dedupe Logic (Strict Normalization)
+                const isDuplicate = (term) => {
+                    const normTerm = normalizeText(term);
+                    if(exactNormTerms.has(normTerm)) return true;
+                    // Fuzzy check using normalized terms
+                    for(let er of exactRows) {
+                         const normEr = normalizeText(er.Term);
+                         // Skip strict compare as we already did set check
+                         if(getSimilarity(normTerm, normEr) >= config.dedupeSim) return true;
+                    }
+                    return false;
+                };
+
+                let harvest = df.filter(r => {
+                    const isExact = r.Match === 'exact';
+                    const isAuto = autoPattern.test(r.Targeting);
+                    if(!(!isExact || isAuto)) return false; // Must be discovery
+                    
+                    if(r.Clicks < config.clickThresh) return false;
+                    if(r.Impressions < config.impThresh) return false;
+                    
+                    // Fixed: Use calculated avgCpc, NOT hardcoded 1.0
+                    if(r.Spend < 3 * avgCpc) return false;
+
+                    const campMedian = campStats[r.Campaign]?.medianRoas || 2.5;
+                    // Promote Logic
+                    const promote = r.Sales_Attr > 0 && r.ROAS >= 1.2 * campMedian;
+                    return promote;
+                });
+
+                // Apply Dedupe
+                harvest = harvest.filter(r => !isDuplicate(r.Term));
+                
+                // Add Score & Bid
+                harvest = harvest.map(r => ({
+                    ...r, 
+                    Quality_Score: parseFloat(calcQualityScore(r)),
+                    New_Bid: parseFloat((r.CPC * 1.1).toFixed(2))
+                })).sort((a,b) => b.Quality_Score - a.Quality_Score);
+
+
+                // 4. Negatives (Isolation + Bleeders)
+                const negatives = [];
+                // Isolation Negatives
+                harvest.forEach(h => {
+                    negatives.push({...h, Type: "Isolation", Match_Type: "negativeExact", Reason: "Harvest Isolation"});
+                });
+                
+                // Performance Bleeders
+                df.forEach(r => {
+                     const c = campStats[r.Campaign] || {cvr:0};
+                     const expOrders = r.Clicks * c.cvr;
+                     const isExact = r.Match === 'exact';
+                     
+                     if(r.Sales_Attr === 0 && 
+                        r.Clicks >= config.bleedClick && 
+                        r.Spend >= config.bleedSpend &&
+                        expOrders >= 1.0 &&
+                        !isExact) {
+                         negatives.push({...r, Type: "Performance", Match_Type: "negativeExact", Reason: "Bleeder", ExpOrders: expOrders.toFixed(1)});
+                     }
+                });
+
+                // 5. Bids
+                const hTerms = new Set(harvest.map(h => h.Term));
+                const bidBase = df.filter(r => !hTerms.has(r.Term) && r.Clicks > 0); 
+                
+                const calcBid = (r, alpha, isLowVol) => {
+                     const target = campStats[r.Campaign]?.medianRoas || 2.5;
+                     if(r.Clicks < 5) {
+                         if(config.exploreBoost > 0) return {bid: r.CPC*(1+config.exploreBoost), reason: "Exploration"};
+                         return {bid: r.CPC, reason: "Hold: Low Data"};
+                     }
+                     
+                     let newBid = r.CPC;
+                     let reason = "Hold";
+                     
+                     if(r.ROAS > 0) {
+                         let delta = (r.ROAS - target)/target;
+                         delta = Math.max(-0.5, Math.min(1.0, delta));
+                         newBid = r.CPC * (1 + (alpha * delta));
+                         reason = delta > 0 ? "Raise: ROAS > Target" : "Lower: ROAS < Target";
+                     } else {
+                         if(r.Clicks > 10) { newBid = r.CPC * (1 - config.maxChange); reason = "Cut: Zero Sales"; }
+                         else reason = "Hold: Low Clicks";
+                     }
+                     newBid = Math.max(r.CPC*(1-config.maxChange), Math.min(r.CPC*(1+config.maxChange), newBid));
+                     return {bid: parseFloat(newBid.toFixed(2)), reason};
+                };
+
+                // Seg 1: Keywords
+                const kwBids = bidBase.filter(r => ['exact','phrase','broad'].includes(r.Match) && !autoPattern.test(r.Targeting)).map(r => {
+                     const alpha = r.Match === 'exact' ? config.alphaKw : config.alphaBroad;
+                     const res = calcBid(r, alpha);
+                     return {...r, NewBid: res.bid, Reason: res.reason, Entity: "Keyword"};
+                });
+
+                // Seg 2: PT
+                const ptBids = bidBase.filter(r => /asin|b0/i.test(r.Targeting) && !/category/i.test(r.Targeting)).map(r => {
+                     const res = calcBid(r, config.alphaPt);
+                     return {...r, NewBid: res.bid, Reason: res.reason, Entity: "Product Targeting"};
+                });
+
+                // Seg 3: Auto
+                const autoRaw = bidBase.filter(r => autoPattern.test(r.Targeting));
+                const autoAgg = {};
+                autoRaw.forEach(r => {
+                    const k = r.TargetingId || r.AdGroupId || "unknown";
+                    if(!autoAgg[k]) autoAgg[k] = { ...r, Clicks:0, Spend:0, Sales_Attr:0, count:0, Targeting: `Target ID: ${k}` };
+                    const g = autoAgg[k];
+                    g.Clicks += r.Clicks; g.Spend += r.Spend; g.Sales_Attr += r.Sales_Attr; g.count++;
+                });
+                const autoBids = Object.values(autoAgg).map(g => {
+                     const aggRoas = g.Spend > 0 ? g.Sales_Attr/g.Spend : 0;
+                     const res = calcBid({...g, ROAS: aggRoas}, config.alphaBroad);
+                     return {...g, ROAS: aggRoas, NewBid: res.bid, Reason: `(Agg) ${res.reason}`, Entity: "Auto Target"};
+                });
+
+                // 6. Clusters
+                const clusterRows = df.filter(r => (r.Match === 'broad' || autoPattern.test(r.Targeting)) && !r.Term.includes('b0') && r.Sales_Attr > 0);
+                const clusters = {};
+                
+                clusterRows.forEach(r => {
+                     const tokens = [...getTokens(r.Term)].sort().join(" ");
+                     if(tokens.length < 3) return;
+                     if(!clusters[tokens]) clusters[tokens] = { key: tokens, rows: [], totalSales:0, totalSpend:0 };
+                     clusters[tokens].rows.push(r);
+                     clusters[tokens].totalSales += r.Sales_Attr;
+                     clusters[tokens].totalSpend += r.Spend;
+                });
+
+                const topClusters = Object.values(clusters).filter(c => c.rows.length > 2).map(c => {
+                     const campPerf = {};
+                     let maxOrders = 0;
+                     c.rows.forEach(r => {
+                         if(!campPerf[r.Campaign]) campPerf[r.Campaign] = {sales:0, orders:0, spend:0};
+                         const cp = campPerf[r.Campaign];
+                         cp.sales += r.Sales_Attr; cp.orders += r.Orders_Attr; cp.spend += r.Spend;
+                         maxOrders = Math.max(maxOrders, cp.orders);
+                     });
+                     
+                     let bestCamp = "N/A", bestScore = -1;
+                     Object.keys(campPerf).forEach(cn => {
+                         const cp = campPerf[cn];
+                         const roas = cp.spend > 0 ? cp.sales/cp.spend : 0;
+                         const normOrd = maxOrders > 0 ? cp.orders/maxOrders : 0;
+                         const score = (roas * 0.7) + (normOrd * roas * 0.3);
+                         if(score > bestScore) { bestScore = score; bestCamp = cn; }
+                     });
+                     
+                     return {
+                         term: c.key,
+                         count: c.rows.length,
+                         sales: c.totalSales,
+                         spend: c.totalSpend,
+                         roas: c.totalSpend > 0 ? c.totalSales/c.totalSpend : 0,
+                         bestCampaign: bestCamp
+                     };
+                }).sort((a,b) => b.sales - a.sales);
+
+                setStats({
+                    spend: df.reduce((a,b)=>a+b.Spend,0),
+                    sales: df.reduce((a,b)=>a+b.Sales_Attr,0),
+                    harvest, negatives, kwBids, ptBids, autoBids, topClusters
+                });
+            };
+
+            useEffect(() => { processData(); }, [data, config]);
+
+            return (
+                <div className="flex h-screen overflow-hidden">
+                    <Sidebar page={page} setPage={setPage} config={config} setConfig={setConfig} dataLoaded={!!data} onUpload={(d) => setData(d)} />
+                    <main className="flex-1 overflow-y-auto bg-slate-900 p-8">
+                        {page === 'home' && <Home setPage={setPage} />}
+                        {page === 'optimizer' && <Optimizer stats={stats} config={config} harvestPayload={harvestPayload} setHarvestPayload={setHarvestPayload} />}
+                        {page === 'creator' && <Creator />}
+                    </main>
+                </div>
+            );
+        };
+
+        const Sidebar = ({ page, setPage, config, setConfig, dataLoaded, onUpload }) => {
+            const handleFile = (e) => {
+                const f = e.target.files[0];
+                const r = new FileReader();
+                r.onload = (evt) => {
+                    const wb = X.read(evt.target.result, {type:'binary'});
+                    const raw = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    const { mapped, err } = mapColumns(raw);
+                    if(err) alert(err);
+                    else onUpload(mapped);
+                };
+                r.readAsBinaryString(f);
+            };
+
+            return (
+                <div className="w-80 bg-slate-950 border-r border-slate-800 flex flex-col h-full overflow-y-auto">
+                    <div className="p-6">
+                        <h1 className="text-2xl font-bold text-teal-400 flex items-center gap-2">🚀 S2C V3</h1>
+                        <p className="text-xs text-slate-500">Full 1:1 Logic Port</p>
+                    </div>
+                    
+                    <div className="px-4 space-y-1 mb-6">
+                        <NavBtn id="home" label="Home" icon="Home" active={page} setPage={setPage} />
+                        <NavBtn id="optimizer" label="Optimizer" icon="BarChart2" active={page} setPage={setPage} />
+                        <NavBtn id="creator" label="Creator" icon="PlusCircle" active={page} setPage={setPage} />
+                    </div>
+
+                    {page === 'optimizer' && (
+                        <div className="px-4 pb-10 space-y-6">
+                            <div className="glass-panel p-4 rounded-lg">
+                                <h3 className="font-bold text-slate-300 mb-2 text-sm flex items-center gap-2"><Icons.Upload /> Data Source</h3>
+                                <input type="file" onChange={handleFile} className="text-xs w-full text-slate-400 file:bg-slate-800 file:text-teal-400 file:border-0 file:rounded file:px-2 file:py-1 mb-2" />
+                                {dataLoaded && <div className="text-xs text-green-400">✅ Data Loaded</div>}
+                            </div>
+
+                            <div className="glass-panel p-4 rounded-lg space-y-3">
+                                <h3 className="font-bold text-slate-300 text-sm">⚙️ Attribution & Harvest</h3>
+                                <Input label="Attribution Window" type="select" val={config.attribution} set={v => setConfig({...config, attribution: parseInt(v)})}>
+                                    <option value={7}>7 Days</option>
+                                    <option value={14}>14 Days</option>
+                                </Input>
+                                <Input label="Min Clicks" type="number" val={config.clickThresh} set={v => setConfig({...config, clickThresh: parseInt(v)})} />
+                                <Input label="Min Impressions" type="number" val={config.impThresh} set={v => setConfig({...config, impThresh: parseInt(v)})} />
+                                <Input label="Target ROAS" type="number" step="0.1" val={config.roasThresh} set={v => setConfig({...config, roasThresh: parseFloat(v)})} />
+                            </div>
+
+                            <div className="glass-panel p-4 rounded-lg space-y-3">
+                                <h3 className="font-bold text-slate-300 text-sm">🛑 Negatives</h3>
+                                <Input label="Bleed Clicks" type="number" val={config.bleedClick} set={v => setConfig({...config, bleedClick: parseInt(v)})} />
+                                <Input label="Bleed Spend ($)" type="number" val={config.bleedSpend} set={v => setConfig({...config, bleedSpend: parseFloat(v)})} />
+                            </div>
+
+                            <div className="glass-panel p-4 rounded-lg space-y-3">
+                                <h3 className="font-bold text-slate-300 text-sm">💰 Bids</h3>
+                                <Input label="Alpha (KW/Exact)" type="range" min="0.05" max="0.5" step="0.05" val={config.alphaKw} set={v => setConfig({...config, alphaKw: parseFloat(v)})} />
+                                <Input label="Alpha (Broad/Auto)" type="range" min="0.05" max="0.5" step="0.05" val={config.alphaBroad} set={v => setConfig({...config, alphaBroad: parseFloat(v)})} />
+                                <Input label="Max Change %" type="number" step="0.05" val={config.maxChange} set={v => setConfig({...config, maxChange: parseFloat(v)})} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const Optimizer = ({ stats, config, harvestPayload, setHarvestPayload }) => {
+            const [tab, setTab] = useState('dash');
+
+            if(!stats) return <div className="flex h-full items-center justify-center text-slate-500"><div>Upload Data in Sidebar to Begin</div></div>;
+
+            const addToPayload = (rows, matchType) => {
+                const newRows = rows.map(r => ({...r, MatchType: matchType}));
+                const combined = [...harvestPayload, ...newRows];
+                const unique = Array.from(new Set(combined.map(a => a.Term)))
+                    .map(term => combined.find(a => a.Term === term));
+                setHarvestPayload(unique);
+                alert(`Added ${rows.length} terms to Actions tab!`);
+            };
+
+            const downloadFile = (data, name) => {
+                const ws = X.utils.json_to_sheet(data);
+                const wb = X.utils.book_new();
+                X.utils.book_append_sheet(wb, ws, "Sheet1");
+                X.writeFile(wb, name);
+            };
+
+            const generateBidFiles = () => {
+                const fmt = (r, type) => ({
+                     "Product": "Sponsored Products", "Entity": r.Entity, "Operation": "Update",
+                     "Campaign ID": r.CampaignId, "Ad Group ID": r.AdGroupId, "Targeting ID": r.TargetingId,
+                     "Bid": r.NewBid, "State": "Enabled"
+                });
+                const kwRows = stats.kwBids.filter(r => !r.Reason.includes("Hold")).map(r => fmt(r));
+                const ptRows = [...stats.ptBids, ...stats.autoBids].filter(r => !r.Reason.includes("Hold")).map(r => fmt(r));
+                
+                downloadFile(kwRows, "keyword_bids.xlsx");
+                downloadFile(ptRows, "targeting_bids.xlsx");
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-4 gap-4">
+                        <MetricCard label="Spend" val={`$${stats.spend.toFixed(0)}`} />
+                        <MetricCard label="Sales" val={`$${stats.sales.toFixed(0)}`} color="text-teal-400" />
+                        <MetricCard label="ROAS" val={(stats.spend>0?stats.sales/stats.spend:0).toFixed(2)+"x"} color="text-blue-400" />
+                        <MetricCard label="Harvest Opps" val={stats.harvest.length} color="text-yellow-400" />
+                    </div>
+
+                    <div className="flex border-b border-slate-700 space-x-6">
+                        {['dash','harvest','negatives','bids','clusters','actions'].map(t => (
+                            <button key={t} onClick={()=>setTab(t)} className={`pb-2 capitalize ${tab===t ? 'text-teal-400 border-b-2 border-teal-400' : 'text-slate-400'}`}>
+                                {t === 'actions' ? `Actions (${harvestPayload.length})` : t}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="min-h-[400px]">
+                        {tab === 'dash' && (
+                            <div className="glass-panel p-6 rounded-lg text-center space-y-4">
+                                <h2 className="text-xl font-bold">Account Health Overview</h2>
+                                <p className="text-slate-400">
+                                    Processed {stats.harvest.length + stats.negatives.length + stats.kwBids.length + stats.ptBids.length + stats.autoBids.length} optimization opportunities 
+                                    across {stats.kwBids.length + stats.ptBids.length + stats.autoBids.length} existing targets.
+                                </p>
+                            </div>
+                        )}
+
+                        {tab === 'harvest' && (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold">Harvest Candidates (Sales & ROAS &gt; 1.2x Median)</h3>
+                                    <button onClick={()=>addToPayload(stats.harvest, 'EXACT')} className="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded text-white font-bold text-sm">
+                                        Prepare for Actions (Exact)
+                                    </button>
+                                </div>
+                                <Table data={stats.harvest} cols={['Term','Quality_Score','Sales_Attr','ROAS','New_Bid','Campaign']} />
+                            </div>
+                        )}
+
+                        {tab === 'negatives' && (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold text-red-400">Bleeders & Isolation</h3>
+                                    <button onClick={()=>downloadFile(stats.negatives.map(r=>({
+                                        "Product": "Sponsored Products", "Operation": "Create", "Campaign ID": r.CampaignId, "Ad Group ID": r.AdGroupId,
+                                        "Entity": "Negative Keyword", "Keyword Text": r.Term, "Match Type": "negativeExact", "State": "Enabled"
+                                    })), "negatives.xlsx")} className="border border-red-500 text-red-400 px-4 py-2 rounded text-sm hover:bg-red-500/10">
+                                        Download Negatives
+                                    </button>
+                                </div>
+                                <Table data={stats.negatives} cols={['Term','Type','Clicks','Spend','ExpOrders','Campaign']} />
+                            </div>
+                        )}
+
+                        {tab === 'bids' && (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold">Segmented Bids</h3>
+                                    <button onClick={generateBidFiles} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-bold text-sm">
+                                        Download Bid Files
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 mb-4 text-center text-sm">
+                                    <div className="glass-panel p-2 rounded">KW: {stats.kwBids.length}</div>
+                                    <div className="glass-panel p-2 rounded">PT: {stats.ptBids.length}</div>
+                                    <div className="glass-panel p-2 rounded">Auto: {stats.autoBids.length}</div>
+                                </div>
+                                <Table data={[...stats.kwBids, ...stats.ptBids, ...stats.autoBids]} cols={['Targeting','Entity','CPC','NewBid','Reason']} limit={200} />
+                            </div>
+                        )}
+
+                        {tab === 'clusters' && (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold">Theme Clusters</h3>
+                                    <button onClick={()=>addToPayload(stats.topClusters.map(c => ({Term: c.term, New_Bid: c.roas * 1.5, Campaign: c.bestCampaign})), 'PHRASE')} className="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded text-white font-bold text-sm">
+                                        Prepare for Actions (Phrase)
+                                    </button>
+                                </div>
+                                <Table data={stats.topClusters} cols={['term','count','sales','roas','bestCampaign']} />
+                            </div>
+                        )}
+
+                        {tab === 'actions' && <ActionsTab payload={harvestPayload} setPayload={setHarvestPayload} />}
+                    </div>
+                </div>
+            );
+        };
+
+        const ActionsTab = ({ payload, setPayload }) => {
+            const [skuMap, setSkuMap] = useState({});
+            const [budget, setBudget] = useState(50);
+            const [portfolio, setPortfolio] = useState("");
+
+            const handleCampFile = (e) => {
+                const f = e.target.files[0];
+                const r = new FileReader();
+                r.onload = (evt) => {
+                    const wb = X.read(evt.target.result, {type:'binary'});
+                    const raw = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    
+                    const map = {};
+                    const asinMap = {}; // Fallback map: ASIN -> SKU
+
+                    // Pass 1: Build Direct Map & ASIN Map from "Product Ad" rows
+                    raw.forEach(r => {
+                        const ent = r["Entity"] || r["Record Type"];
+                        const camp = r["Campaign"] || r["Campaign Name"];
+                        const sku = r["SKU"] || r["Advertised SKU"];
+                        const asin = r["ASIN"] || r["Advertised ASIN"];
+                        
+                        if(ent === "Product Ad" && camp && sku) {
+                            map[camp] = sku;
+                            if(asin) asinMap[asin] = sku;
+                        }
+                    });
+
+                    // Pass 2: Fallback using Regex on Campaign Names
+                    // Only if direct map missing. Matches patterns like "..._B0X12345_..."
+                    const asinRegex = /([A-Z0-9]{10})/; 
+                    
+                    // We only need to check payloads that are missing, but here we construct a lookup tool
+                    // We can also reverse map from payload campaign names if they match
+                    
+                    setSkuMap({ direct: map, asins: asinMap });
+                    alert(`Mapped SKUs from ${Object.keys(map).length} campaigns.`);
+                };
+                r.readAsBinaryString(f);
+            };
+
+            const getSku = (campaignName) => {
+                if(!skuMap.direct) return "SKU_NEEDED";
+                // 1. Direct Match
+                if(skuMap.direct[campaignName]) return skuMap.direct[campaignName];
+                
+                // 2. Regex Fallback (ASIN in Camp Name)
+                if(skuMap.asins) {
+                    const match = campaignName.match(/([A-Z0-9]{10})/);
+                    if(match && skuMap.asins[match[1]]) return skuMap.asins[match[1]];
+                }
+                return "SKU_NEEDED";
+            };
+
+            const generateBulk = () => {
+                const rows = [];
+                const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+                
+                const grouped = {};
+                payload.forEach(item => {
+                    const sku = getSku(item.Campaign);
+                    if(!grouped[sku]) grouped[sku] = [];
+                    grouped[sku].push(item);
+                });
+
+                Object.keys(grouped).forEach(sku => {
+                    const items = grouped[sku];
+                    const matches = { 'EXACT': [], 'PHRASE': [] };
+                    items.forEach(i => matches[i.MatchType || 'EXACT'].push(i));
+
+                    ['EXACT', 'PHRASE'].forEach(mType => {
+                        const subItems = matches[mType];
+                        if(!subItems.length) return;
+
+                        const campName = `Harvest_${mType}_${sku}_${date}`;
+                        const agName = `AG_${mType}_${sku}`;
+                        
+                        rows.push({
+                            "Product": "Sponsored Products", "Entity": "Campaign", "Operation": "Create",
+                            "Campaign ID": campName, "Campaign Name": campName, "Start Date": date,
+                            "Targeting Type": "MANUAL", "State": "Enabled", "Daily Budget": budget,
+                            "Bidding Strategy": "Dynamic bids - down only", "Portfolio ID": portfolio
+                        });
+                        rows.push({
+                            "Product": "Sponsored Products", "Entity": "Ad Group", "Operation": "Create",
+                            "Campaign ID": campName, "Ad Group ID": agName, "State": "Enabled",
+                            "Ad Group Default Bid": 1.0
+                        });
+                        rows.push({
+                            "Product": "Sponsored Products", "Entity": "Product Ad", "Operation": "Create",
+                            "Campaign ID": campName, "Ad Group ID": agName, "SKU": sku, "State": "Enabled"
+                        });
+                        subItems.forEach(i => {
+                            rows.push({
+                                "Product": "Sponsored Products", "Entity": "Keyword", "Operation": "Create",
+                                "Campaign ID": campName, "Ad Group ID": agName, "Keyword Text": i.Term,
+                                "Match Type": mType.toLowerCase(), "Bid": i.New_Bid, "State": "Enabled"
+                            });
+                        });
+                    });
+                });
+
+                const ws = X.utils.json_to_sheet(rows);
+                const wb = X.utils.book_new();
+                X.utils.book_append_sheet(wb, ws, "Sheet1");
+                X.writeFile(wb, "harvest_creation_bulk.xlsx");
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex gap-4">
+                        <div className="glass-panel p-4 rounded-lg flex-1">
+                            <h4 className="font-bold mb-2">1. Enrich with SKUs</h4>
+                            <p className="text-xs text-slate-400 mb-2">Upload 'Sponsored Products Campaigns' report to map Campaign -> SKU.</p>
+                            <input type="file" onChange={handleCampFile} className="text-xs w-full text-slate-400 file:bg-slate-800 file:text-teal-400 file:border-0 file:rounded file:px-2 file:py-1" />
+                        </div>
+                        <div className="glass-panel p-4 rounded-lg flex-1">
+                            <h4 className="font-bold mb-2">2. Settings</h4>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <label className="text-xs">Budget</label>
+                                    <input type="number" value={budget} onChange={e=>setBudget(e.target.value)} className="glass-input w-full p-1 rounded" />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-xs">Portfolio ID</label>
+                                    <input type="text" value={portfolio} onChange={e=>setPortfolio(e.target.value)} className="glass-input w-full p-1 rounded" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="glass-panel p-4 rounded-lg">
+                        <div className="flex justify-between mb-4">
+                            <h4 className="font-bold">Preview ({payload.length} terms)</h4>
+                            <button onClick={generateBulk} className="bg-teal-600 hover:bg-teal-500 px-6 py-2 rounded text-white font-bold">
+                                Generate Bulk File
+                            </button>
+                        </div>
+                        <div className="overflow-auto max-h-[300px]">
+                            <table className="w-full text-xs text-left text-slate-400">
+                                <thead className="sticky top-0 bg-slate-800">
+                                    <tr><th className="p-2">Term</th><th className="p-2">Source Camp</th><th className="p-2">Mapped SKU</th><th className="p-2">Match</th><th className="p-2">Bid</th></tr>
+                                </thead>
+                                <tbody>
+                                    {payload.map((r,i) => (
+                                        <tr key={i} className="border-b border-slate-700">
+                                            <td className="p-2">{r.Term}</td>
+                                            <td className="p-2">{r.Campaign}</td>
+                                            <td className="p-2 text-teal-400">{getSku(r.Campaign)}</td>
+                                            <td className="p-2">{r.MatchType}</td>
+                                            <td className="p-2">{r.New_Bid}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Creator = () => {
+            const [inputs, setInputs] = useState({skus: '', asins: '', price: 99.0, acos: 20, cvr: 10, budget: 200});
+            const [kws, setKws] = useState([]);
+            
+            const generate = () => {
+                 const baseBid = inputs.price * (inputs.cvr/100) * (inputs.acos/100);
+                 const rows = [];
+                 const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+                 const skus = inputs.skus.split(",").map(s=>s.trim()).filter(Boolean);
+                 if(!skus.length) return alert("Enter SKUs");
+
+                 const tactics = ["Auto", "Manual_KW", "Manual_ASIN"];
+                 tactics.forEach((t, i) => {
+                     const b = (inputs.budget * ((tactics.length-i)/6)).toFixed(2); // Simple weighted
+                     const cName = `Launch_${skus[0]}_${t}_${date}`;
+                     
+                     rows.push({
+                        "Product": "Sponsored Products", "Entity": "Campaign", "Operation": "Create",
+                        "Campaign ID": cName, "Campaign Name": cName, "Daily Budget": b, "State": "Enabled"
+                     });
+                 });
+                 const ws = X.utils.json_to_sheet(rows);
+                 const wb = X.utils.book_new();
+                 X.utils.book_append_sheet(wb, ws, "Sheet1");
+                 X.writeFile(wb, "creator_launch.xlsx");
+            };
+
+            return (
+                <div className="glass-panel p-8 rounded-xl max-w-4xl mx-auto space-y-6">
+                    <h2 className="text-2xl font-bold">Campaign Creator</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input label="SKUs" type="text" val={inputs.skus} set={v=>setInputs({...inputs, skus:v})} />
+                        <Input label="Price" type="number" val={inputs.price} set={v=>setInputs({...inputs, price:v})} />
+                    </div>
+                    <button onClick={generate} className="w-full bg-teal-600 py-3 rounded font-bold">Generate Launch Files</button>
+                </div>
+            );
+        };
+
+        const Home = ({setPage}) => (
+             <div className="text-center pt-20 space-y-8">
+                <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">S2C LaunchPad V3</h1>
+                <p className="text-xl text-slate-400">Complete 1:1 Logic Port of Python Suite</p>
+                <div className="flex justify-center gap-6">
+                    <button onClick={()=>setPage('optimizer')} className="glass-panel hover:border-teal-400 p-8 rounded-xl text-left w-64 transition-all">
+                        <div className="text-4xl mb-4">📊</div>
+                        <div className="font-bold text-xl">Optimizer</div>
+                        <div className="text-sm text-slate-400">Harvest, Negate, Optimize</div>
+                    </button>
+                    <button onClick={()=>setPage('creator')} className="glass-panel hover:border-blue-400 p-8 rounded-xl text-left w-64 transition-all">
+                        <div className="text-4xl mb-4">🚀</div>
+                        <div className="font-bold text-xl">Creator</div>
+                        <div className="text-sm text-slate-400">Launch New Campaigns</div>
+                    </button>
+                </div>
+             </div>
+        );
+
+        // --- Shared UI Components ---
+        const NavBtn = ({id, label, icon, active, setPage}) => {
+             const Icon = Icons[icon];
+             return (
+                 <button onClick={()=>setPage(id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${active===id ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}>
+                     {Icon && <Icon />}
+                     <span>{label}</span>
+                 </button>
+             )
+        };
+
+        const Input = ({label, type, val, set, min, max, step, children}) => (
+            <div>
+                <label className="block text-xs text-slate-400 mb-1">{label}</label>
+                {type === 'select' ? 
+                    <select value={val} onChange={e=>set(e.target.value)} className="glass-input w-full p-2 rounded text-sm">{children}</select> :
+                    <input type={type} value={val} onChange={e=>set(e.target.value)} min={min} max={max} step={step} className="glass-input w-full p-2 rounded text-sm" />
+                }
+            </div>
+        );
+
+        const MetricCard = ({label, val, color="text-white"}) => (
+            <div className="glass-panel p-4 rounded-lg text-center">
+                <div className="text-xs text-slate-500 uppercase font-bold mb-1">{label}</div>
+                <div className={`text-2xl font-bold ${color}`}>{val}</div>
+            </div>
+        );
+
+        const Table = ({data, cols, limit=100}) => (
+            <div className="overflow-auto border border-slate-700 rounded-lg max-h-[500px]">
+                <table className="w-full text-sm text-left text-slate-400">
+                    <thead className="bg-slate-800 text-slate-200 sticky top-0">
+                        <tr>{cols.map(c => <th key={c} className="p-3 capitalize">{c.replace('_',' ')}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                        {data.slice(0, limit).map((r,i) => (
+                            <tr key={i} className="border-b border-slate-800 hover:bg-slate-800/50">
+                                {cols.map(c => <td key={c} className="p-3 max-w-[200px] truncate">{typeof r[c] === 'number' ? r[c].toFixed(c.includes('ROAS')?2:2) : r[c]}</td>)}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

@@ -1,0 +1,871 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.7">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; -webkit-text-stroke: #000000; min-height: 14.0px}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">&lt;!DOCTYPE html&gt;</span></p>
+<p class="p1"><span class="s1">&lt;html lang="en"&gt;</span></p>
+<p class="p1"><span class="s1">&lt;head&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;title&gt;S2C LaunchPad V3 (1:1 Logic Port)&lt;/title&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;!-- React &amp; Tailwind --&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://unpkg.com/@babel/standalone/babel.min.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.tailwindcss.com"&gt;&lt;/script&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;!-- SheetJS for Excel Processing --&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"&gt;&lt;/script&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;style&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>.glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>.glass-input { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); color: white; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>.glass-input:focus { border-color: #2dd4bf; outline: none; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar { width: 8px; height: 8px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar-track { background: #0f172a; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>body { margin: 0; overflow: hidden; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
+<p class="p1"><span class="s1">&lt;body class="bg-slate-950 text-slate-200 font-sans"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="root"&gt;&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script type="text/babel"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const { useState, useEffect, useMemo, useRef } = React;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const X = XLSX;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// ==========================================</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// 1. CORE UTILS &amp; LOGIC (PYTHON PORT)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// ==========================================</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// Strict normalization for matching (matches Python's re.sub(r"[^a-z0-9]", "", text.lower()))</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const normalizeText = (text) =&gt; String(text || "").toLowerCase().replace(/[^a-z0-9]/g, "");</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">        </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// Tokenizer for clustering</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const getTokens = (text) =&gt; new Set(String(text || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(t =&gt; t.length &gt; 2 &amp;&amp; !t.startsWith('b0')));</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">        </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// Levenshtein Distance for Fuzzy Dedupe (1:1 with Python difflib ratio approximation)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const getSimilarity = (s1, s2) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const longer = s1.length &gt; s2.length ? s1 : s2;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const shorter = s1.length &gt; s2.length ? s2 : s1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (longer.length === 0) return 1.0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const costs = new Array();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for (let i = 0; i &lt;= shorter.length; i++) costs[i] = i;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>for (let i = 1; i &lt;= longer.length; i++) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>let prev = costs[0];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>costs[0] = i;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>for (let j = 1; j &lt;= shorter.length; j++) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const temp = costs[j];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if (s1[i - 1] === s2[j - 1]) costs[j] = prev;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>else costs[j] = Math.min(costs[j - 1], costs[j], prev) + 1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>prev = temp;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (longer.length - costs[shorter.length]) / longer.length;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const ALIAS_MAP = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"Impressions": ["impressions", "impr"], "Clicks": ["clicks"], "Spend": ["spend", "cost"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"Sales": ["7 day total sales", "sales", "total sales"], "Orders": ["7 day total orders", "orders"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"Sales14": ["14 day total sales"], "Orders14": ["14 day total orders"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"CPC": ["cpc", "cost per click"], "Campaign": ["campaign name", "campaign"], "AdGroup": ["ad group name", "ad group"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"Term": ["customer search term", "search term", "query"], "Keyword": ["keyword text", "targeting", "keyword"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"TargetingExpression": ["product targeting expression", "targeting expression"], "Match": ["match type"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"CampaignId": ["campaign id"], "AdGroupId": ["ad group id"], "TargetingId": ["product targeting id", "targeting id", "keyword id"],</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"SKU": ["advertised sku", "sku"], "Entity": ["entity"], "ASIN": ["advertised asin", "asin"]</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const mapColumns = (data) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (!data || !data.length) return { mapped: [], err: "Empty file" };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const headers = Object.keys(data[0]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const normHeaders = {};<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>headers.forEach(h =&gt; normHeaders[normalizeText(h)] = h);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const mapping = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>Object.keys(ALIAS_MAP).forEach(key =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const aliases = ALIAS_MAP[key];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>let found = null;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Strict check then fuzzy check</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>for(let a of aliases) { if(normHeaders[normalizeText(a)]) { found = normHeaders[normalizeText(a)]; break; } }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(!found) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>for(let a of aliases) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const n = normalizeText(a);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>for(let realH of Object.keys(normHeaders)) { if(realH.includes(n)) { found = normHeaders[realH]; break; } }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>if(found) break;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>mapping[key] = found;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if(!mapping.Impressions || !mapping.Clicks || !mapping.Spend || !mapping.Campaign)<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return { mapped: [], err: `Missing Columns. Found: ${JSON.stringify(mapping)}` };</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const mapped = data.map(row =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const newRow = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>Object.keys(mapping).forEach(k =&gt; { if(mapping[k]) newRow[k] = row[mapping[k]]; });</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Clean Numerics (Robust)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>["Impressions","Clicks","Spend","Sales","Orders","Sales14","Orders14","CPC"].forEach(f =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>let val = newRow[f];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if (val === undefined || val === null) val = 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if (typeof val === 'string') {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>// Remove currency symbols, preserve dots and negatives</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>val = val.replace(/[^0-9.-]/g, '');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>newRow[f] = parseFloat(val) || 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Clean Text</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>newRow.CampaignId = String(newRow.CampaignId || "");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>newRow.AdGroupId = String(newRow.AdGroupId || "");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>newRow.TargetingId = String(newRow.TargetingId || "");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>newRow.Term = String(newRow.Term || "").toLowerCase().trim();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>newRow.Match = String(newRow.Match || "broad").toLowerCase();</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Targeting logic</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>let t = newRow.Keyword;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(newRow.TargetingExpression) t = newRow.TargetingExpression;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(!t) t = newRow.Term;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>newRow.Targeting = String(t).toLowerCase();</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return newRow;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return { mapped, err: null };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// ==========================================</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// 2. UI ICONS</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// ==========================================</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Icons = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>Home: () =&gt; &lt;svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"&gt;&lt;path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/&gt;&lt;polyline points="9 22 9 12 15 12 15 22"/&gt;&lt;/svg&gt;,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>BarChart2: () =&gt; &lt;svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"&gt;&lt;line x1="18" y1="20" x2="18" y2="10"/&gt;&lt;line x1="12" y1="20" x2="12" y2="4"/&gt;&lt;line x1="6" y1="20" x2="6" y2="14"/&gt;&lt;/svg&gt;,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>PlusCircle: () =&gt; &lt;svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"&gt;&lt;circle cx="12" cy="12" r="10"/&gt;&lt;line x1="12" y1="8" x2="12" y2="16"/&gt;&lt;line x1="8" y1="12" x2="16" y2="12"/&gt;&lt;/svg&gt;,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>Upload: () =&gt; &lt;svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"&gt;&lt;path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"/&gt;&lt;polyline points="17 8 12 3 7 8"/&gt;&lt;line x1="12" y1="3" x2="12" y2="15"/&gt;&lt;/svg&gt;,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>Settings: () =&gt; &lt;svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"&gt;&lt;circle cx="12" cy="12" r="3"/&gt;&lt;path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/&gt;&lt;/svg&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// ==========================================</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// 3. REACT COMPONENTS</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// ==========================================</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const App = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [page, setPage] = useState('home');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [data, setData] = useState(null);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [stats, setStats] = useState(null);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [config, setConfig] = useState({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>attribution: 7, clickThresh: 10, impThresh: 250, roasThresh: 2.5,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>bleedClick: 15, bleedSpend: 5.0, alphaKw: 0.2, alphaPt: 0.2, alphaBroad: 0.15,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>maxChange: 0.2, exploreBoost: 0.05, dedupeSim: 0.9</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [harvestPayload, setHarvestPayload] = useState([]);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const processData = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(!data) return;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 1. Attribution &amp; Base Metrics</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const use14 = config.attribution === 14;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const df = data.map(r =&gt; ({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>...r,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>Sales_Attr: use14 ? (r.Sales14 || r.Sales) : r.Sales,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>Orders_Attr: use14 ? (r.Orders14 || r.Orders) : r.Orders</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>})).map(r =&gt; ({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>...r,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>CTR: r.Impressions &gt; 0 ? r.Clicks/r.Impressions : 0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>CVR: r.Clicks &gt; 0 ? r.Orders_Attr/r.Clicks : 0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>ROAS: r.Spend &gt; 0 ? r.Sales_Attr/r.Spend : 0</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}));</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 2. Campaign Averages &amp; Dynamic Thresholds</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const campStats = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>let totalCpc = 0;<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>let cpcCount = 0;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>df.forEach(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(!campStats[r.Campaign]) campStats[r.Campaign] = { clicks:0, impr:0, spend:0, sales:0, orders:0, roasVals:[] };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const c = campStats[r.Campaign];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>c.clicks += r.Clicks; c.impr += r.Impressions; c.spend += r.Spend; c.sales += r.Sales_Attr; c.orders += r.Orders_Attr;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(r.ROAS &gt; 0) c.roasVals.push(r.ROAS);</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(r.CPC &gt; 0) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>totalCpc += r.CPC;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>cpcCount++;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Calculate Dynamic Average CPC (critical for harvest filter)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const avgCpc = cpcCount &gt; 0 ? totalCpc / cpcCount : 0.5;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>Object.values(campStats).forEach(c =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>c.ctr = c.impr &gt; 0 ? c.clicks/c.impr : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>c.cvr = c.clicks &gt; 0 ? c.orders/c.clicks : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>c.roasVals.sort((a,b)=&gt;a-b);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const mid = Math.floor(c.roasVals.length/2);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>c.medianRoas = c.roasVals.length ? (c.roasVals.length%2!==0 ? c.roasVals[mid] : (c.roasVals[mid-1]+c.roasVals[mid])/2) : 2.5;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 3. Harvest Logic (Strict Port)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const autoPattern = /close-match|loose-match|substitutes|complements|category=|asin|b0/i;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const exactRows = df.filter(r =&gt; r.Match === 'exact');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const exactNormTerms = new Set(exactRows.map(r =&gt; normalizeText(r.Term)));</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const calcQualityScore = (row) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const c = campStats[row.Campaign] || {ctr:0, cvr:0, medianRoas:2.5};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const ctrF = c.ctr &gt; 0 ? Math.min(40, (row.CTR/c.ctr)*20) : 20;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const cvrF = c.cvr &gt; 0 ? Math.min(30, (row.CVR/c.cvr)*15) : 15;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const volF = Math.min(20, Math.log1p(row.Clicks)*3);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const roasF = (c.medianRoas&gt;0 &amp;&amp; row.ROAS&gt;0) ? Math.min(10, (row.ROAS/c.medianRoas)*5) : 5;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>return (ctrF+cvrF+volF+roasF).toFixed(1);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Dedupe Logic (Strict Normalization)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const isDuplicate = (term) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const normTerm = normalizeText(term);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(exactNormTerms.has(normTerm)) return true;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// Fuzzy check using normalized terms</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>for(let er of exactRows) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>const normEr = normalizeText(er.Term);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>// Skip strict compare as we already did set check</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>if(getSimilarity(normTerm, normEr) &gt;= config.dedupeSim) return true;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>return false;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>let harvest = df.filter(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const isExact = r.Match === 'exact';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const isAuto = autoPattern.test(r.Targeting);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(!(!isExact || isAuto)) return false; // Must be discovery</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(r.Clicks &lt; config.clickThresh) return false;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(r.Impressions &lt; config.impThresh) return false;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// Fixed: Use calculated avgCpc, NOT hardcoded 1.0</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(r.Spend &lt; 3 * avgCpc) return false;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const campMedian = campStats[r.Campaign]?.medianRoas || 2.5;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// Promote Logic</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const promote = r.Sales_Attr &gt; 0 &amp;&amp; r.ROAS &gt;= 1.2 * campMedian;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>return promote;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Apply Dedupe</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>harvest = harvest.filter(r =&gt; !isDuplicate(r.Term));</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Add Score &amp; Bid</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>harvest = harvest.map(r =&gt; ({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>...r,<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>Quality_Score: parseFloat(calcQualityScore(r)),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>New_Bid: parseFloat((r.CPC * 1.1).toFixed(2))</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>})).sort((a,b) =&gt; b.Quality_Score - a.Quality_Score);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 4. Negatives (Isolation + Bleeders)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const negatives = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Isolation Negatives</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>harvest.forEach(h =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>negatives.push({...h, Type: "Isolation", Match_Type: "negativeExact", Reason: "Harvest Isolation"});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Performance Bleeders</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>df.forEach(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const c = campStats[r.Campaign] || {cvr:0};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const expOrders = r.Clicks * c.cvr;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const isExact = r.Match === 'exact';</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                     </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>if(r.Sales_Attr === 0 &amp;&amp;<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>r.Clicks &gt;= config.bleedClick &amp;&amp;<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>r.Spend &gt;= config.bleedSpend &amp;&amp;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>expOrders &gt;= 1.0 &amp;&amp;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>!isExact) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>negatives.push({...r, Type: "Performance", Match_Type: "negativeExact", Reason: "Bleeder", ExpOrders: expOrders.toFixed(1)});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 5. Bids</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const hTerms = new Set(harvest.map(h =&gt; h.Term));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const bidBase = df.filter(r =&gt; !hTerms.has(r.Term) &amp;&amp; r.Clicks &gt; 0);<span class="Apple-converted-space"> </span></span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const calcBid = (r, alpha, isLowVol) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const target = campStats[r.Campaign]?.medianRoas || 2.5;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>if(r.Clicks &lt; 5) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>if(config.exploreBoost &gt; 0) return {bid: r.CPC*(1+config.exploreBoost), reason: "Exploration"};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>return {bid: r.CPC, reason: "Hold: Low Data"};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>}</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                     </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>let newBid = r.CPC;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>let reason = "Hold";</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                     </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>if(r.ROAS &gt; 0) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>let delta = (r.ROAS - target)/target;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>delta = Math.max(-0.5, Math.min(1.0, delta));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>newBid = r.CPC * (1 + (alpha * delta));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>reason = delta &gt; 0 ? "Raise: ROAS &gt; Target" : "Lower: ROAS &lt; Target";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>} else {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>if(r.Clicks &gt; 10) { newBid = r.CPC * (1 - config.maxChange); reason = "Cut: Zero Sales"; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>else reason = "Hold: Low Clicks";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>newBid = Math.max(r.CPC*(1-config.maxChange), Math.min(r.CPC*(1+config.maxChange), newBid));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>return {bid: parseFloat(newBid.toFixed(2)), reason};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Seg 1: Keywords</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const kwBids = bidBase.filter(r =&gt; ['exact','phrase','broad'].includes(r.Match) &amp;&amp; !autoPattern.test(r.Targeting)).map(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const alpha = r.Match === 'exact' ? config.alphaKw : config.alphaBroad;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const res = calcBid(r, alpha);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>return {...r, NewBid: res.bid, Reason: res.reason, Entity: "Keyword"};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Seg 2: PT</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const ptBids = bidBase.filter(r =&gt; /asin|b0/i.test(r.Targeting) &amp;&amp; !/category/i.test(r.Targeting)).map(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const res = calcBid(r, config.alphaPt);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>return {...r, NewBid: res.bid, Reason: res.reason, Entity: "Product Targeting"};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// Seg 3: Auto</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const autoRaw = bidBase.filter(r =&gt; autoPattern.test(r.Targeting));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const autoAgg = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>autoRaw.forEach(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const k = r.TargetingId || r.AdGroupId || "unknown";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(!autoAgg[k]) autoAgg[k] = { ...r, Clicks:0, Spend:0, Sales_Attr:0, count:0, Targeting: `Target ID: ${k}` };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const g = autoAgg[k];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>g.Clicks += r.Clicks; g.Spend += r.Spend; g.Sales_Attr += r.Sales_Attr; g.count++;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const autoBids = Object.values(autoAgg).map(g =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const aggRoas = g.Spend &gt; 0 ? g.Sales_Attr/g.Spend : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const res = calcBid({...g, ROAS: aggRoas}, config.alphaBroad);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>return {...g, ROAS: aggRoas, NewBid: res.bid, Reason: `(Agg) ${res.reason}`, Entity: "Auto Target"};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 6. Clusters</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const clusterRows = df.filter(r =&gt; (r.Match === 'broad' || autoPattern.test(r.Targeting)) &amp;&amp; !r.Term.includes('b0') &amp;&amp; r.Sales_Attr &gt; 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const clusters = {};</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>clusterRows.forEach(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const tokens = [...getTokens(r.Term)].sort().join(" ");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>if(tokens.length &lt; 3) return;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>if(!clusters[tokens]) clusters[tokens] = { key: tokens, rows: [], totalSales:0, totalSpend:0 };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>clusters[tokens].rows.push(r);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>clusters[tokens].totalSales += r.Sales_Attr;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>clusters[tokens].totalSpend += r.Spend;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const topClusters = Object.values(clusters).filter(c =&gt; c.rows.length &gt; 2).map(c =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const campPerf = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>let maxOrders = 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>c.rows.forEach(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>if(!campPerf[r.Campaign]) campPerf[r.Campaign] = {sales:0, orders:0, spend:0};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>const cp = campPerf[r.Campaign];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>cp.sales += r.Sales_Attr; cp.orders += r.Orders_Attr; cp.spend += r.Spend;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>maxOrders = Math.max(maxOrders, cp.orders);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>});</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                     </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>let bestCamp = "N/A", bestScore = -1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>Object.keys(campPerf).forEach(cn =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>const cp = campPerf[cn];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>const roas = cp.spend &gt; 0 ? cp.sales/cp.spend : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>const normOrd = maxOrders &gt; 0 ? cp.orders/maxOrders : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>const score = (roas * 0.7) + (normOrd * roas * 0.3);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>if(score &gt; bestScore) { bestScore = score; bestCamp = cn; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>});</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                     </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>return {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>term: c.key,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>count: c.rows.length,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>sales: c.totalSales,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>spend: c.totalSpend,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>roas: c.totalSpend &gt; 0 ? c.totalSales/c.totalSpend : 0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                         </span>bestCampaign: bestCamp</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}).sort((a,b) =&gt; b.sales - a.sales);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setStats({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>spend: df.reduce((a,b)=&gt;a+b.Spend,0),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>sales: df.reduce((a,b)=&gt;a+b.Sales_Attr,0),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>harvest, negatives, kwBids, ptBids, autoBids, topClusters</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>useEffect(() =&gt; { processData(); }, [data, config]);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="flex h-screen overflow-hidden"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;Sidebar page={page} setPage={setPage} config={config} setConfig={setConfig} dataLoaded={!!data} onUpload={(d) =&gt; setData(d)} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;main className="flex-1 overflow-y-auto bg-slate-900 p-8"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{page === 'home' &amp;&amp; &lt;Home setPage={setPage} /&gt;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{page === 'optimizer' &amp;&amp; &lt;Optimizer stats={stats} config={config} harvestPayload={harvestPayload} setHarvestPayload={setHarvestPayload} /&gt;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{page === 'creator' &amp;&amp; &lt;Creator /&gt;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/main&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Sidebar = ({ page, setPage, config, setConfig, dataLoaded, onUpload }) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const handleFile = (e) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const f = e.target.files[0];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const r = new FileReader();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>r.onload = (evt) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const wb = X.read(evt.target.result, {type:'binary'});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const raw = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const { mapped, err } = mapColumns(raw);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(err) alert(err);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>else onUpload(mapped);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>r.readAsBinaryString(f);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="w-80 bg-slate-950 border-r border-slate-800 flex flex-col h-full overflow-y-auto"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="p-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;h1 className="text-2xl font-bold text-teal-400 flex items-center gap-2"&gt;🚀 S2C V3&lt;/h1&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;p className="text-xs text-slate-500"&gt;Full 1:1 Logic Port&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="px-4 space-y-1 mb-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;NavBtn id="home" label="Home" icon="Home" active={page} setPage={setPage} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;NavBtn id="optimizer" label="Optimizer" icon="BarChart2" active={page} setPage={setPage} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;NavBtn id="creator" label="Creator" icon="PlusCircle" active={page} setPage={setPage} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>{page === 'optimizer' &amp;&amp; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="px-4 pb-10 space-y-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="glass-panel p-4 rounded-lg"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;h3 className="font-bold text-slate-300 mb-2 text-sm flex items-center gap-2"&gt;&lt;Icons.Upload /&gt; Data Source&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;input type="file" onChange={handleFile} className="text-xs w-full text-slate-400 file:bg-slate-800 file:text-teal-400 file:border-0 file:rounded file:px-2 file:py-1 mb-2" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>{dataLoaded &amp;&amp; &lt;div className="text-xs text-green-400"&gt;✅ Data Loaded&lt;/div&gt;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="glass-panel p-4 rounded-lg space-y-3"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;h3 className="font-bold text-slate-300 text-sm"&gt;⚙️ Attribution &amp; Harvest&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Attribution Window" type="select" val={config.attribution} set={v =&gt; setConfig({...config, attribution: parseInt(v)})}&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;option value={7}&gt;7 Days&lt;/option&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;option value={14}&gt;14 Days&lt;/option&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/Input&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Min Clicks" type="number" val={config.clickThresh} set={v =&gt; setConfig({...config, clickThresh: parseInt(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Min Impressions" type="number" val={config.impThresh} set={v =&gt; setConfig({...config, impThresh: parseInt(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Target ROAS" type="number" step="0.1" val={config.roasThresh} set={v =&gt; setConfig({...config, roasThresh: parseFloat(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="glass-panel p-4 rounded-lg space-y-3"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;h3 className="font-bold text-slate-300 text-sm"&gt;🛑 Negatives&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Bleed Clicks" type="number" val={config.bleedClick} set={v =&gt; setConfig({...config, bleedClick: parseInt(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Bleed Spend ($)" type="number" val={config.bleedSpend} set={v =&gt; setConfig({...config, bleedSpend: parseFloat(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="glass-panel p-4 rounded-lg space-y-3"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;h3 className="font-bold text-slate-300 text-sm"&gt;💰 Bids&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Alpha (KW/Exact)" type="range" min="0.05" max="0.5" step="0.05" val={config.alphaKw} set={v =&gt; setConfig({...config, alphaKw: parseFloat(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Alpha (Broad/Auto)" type="range" min="0.05" max="0.5" step="0.05" val={config.alphaBroad} set={v =&gt; setConfig({...config, alphaBroad: parseFloat(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Input label="Max Change %" type="number" step="0.05" val={config.maxChange} set={v =&gt; setConfig({...config, maxChange: parseFloat(v)})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>)}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Optimizer = ({ stats, config, harvestPayload, setHarvestPayload }) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [tab, setTab] = useState('dash');</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if(!stats) return &lt;div className="flex h-full items-center justify-center text-slate-500"&gt;&lt;div&gt;Upload Data in Sidebar to Begin&lt;/div&gt;&lt;/div&gt;;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const addToPayload = (rows, matchType) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const newRows = rows.map(r =&gt; ({...r, MatchType: matchType}));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const combined = [...harvestPayload, ...newRows];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const unique = Array.from(new Set(combined.map(a =&gt; a.Term)))</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>.map(term =&gt; combined.find(a =&gt; a.Term === term));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setHarvestPayload(unique);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>alert(`Added ${rows.length} terms to Actions tab!`);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const downloadFile = (data, name) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const ws = X.utils.json_to_sheet(data);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const wb = X.utils.book_new();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>X.utils.book_append_sheet(wb, ws, "Sheet1");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>X.writeFile(wb, name);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const generateBidFiles = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const fmt = (r, type) =&gt; ({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>"Product": "Sponsored Products", "Entity": r.Entity, "Operation": "Update",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>"Campaign ID": r.CampaignId, "Ad Group ID": r.AdGroupId, "Targeting ID": r.TargetingId,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>"Bid": r.NewBid, "State": "Enabled"</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const kwRows = stats.kwBids.filter(r =&gt; !r.Reason.includes("Hold")).map(r =&gt; fmt(r));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const ptRows = [...stats.ptBids, ...stats.autoBids].filter(r =&gt; !r.Reason.includes("Hold")).map(r =&gt; fmt(r));</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>downloadFile(kwRows, "keyword_bids.xlsx");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>downloadFile(ptRows, "targeting_bids.xlsx");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="space-y-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="grid grid-cols-4 gap-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;MetricCard label="Spend" val={`$${stats.spend.toFixed(0)}`} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;MetricCard label="Sales" val={`$${stats.sales.toFixed(0)}`} color="text-teal-400" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;MetricCard label="ROAS" val={(stats.spend&gt;0?stats.sales/stats.spend:0).toFixed(2)+"x"} color="text-blue-400" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;MetricCard label="Harvest Opps" val={stats.harvest.length} color="text-yellow-400" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="flex border-b border-slate-700 space-x-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{['dash','harvest','negatives','bids','clusters','actions'].map(t =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;button key={t} onClick={()=&gt;setTab(t)} className={`pb-2 capitalize ${tab===t ? 'text-teal-400 border-b-2 border-teal-400' : 'text-slate-400'}`}&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>{t === 'actions' ? `Actions (${harvestPayload.length})` : t}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>))}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="min-h-[400px]"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{tab === 'dash' &amp;&amp; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="glass-panel p-6 rounded-lg text-center space-y-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;h2 className="text-xl font-bold"&gt;Account Health Overview&lt;/h2&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;p className="text-slate-400"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>Processed {stats.harvest.length + stats.negatives.length + stats.kwBids.length + stats.ptBids.length + stats.autoBids.length} optimization opportunities<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>across {stats.kwBids.length + stats.ptBids.length + stats.autoBids.length} existing targets.</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>)}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{tab === 'harvest' &amp;&amp; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="space-y-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="flex justify-between items-center"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;h3 className="font-bold"&gt;Harvest Candidates (Sales &amp; ROAS &amp;gt; 1.2x Median)&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;button onClick={()=&gt;addToPayload(stats.harvest, 'EXACT')} className="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded text-white font-bold text-sm"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>Prepare for Actions (Exact)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Table data={stats.harvest} cols={['Term','Quality_Score','Sales_Attr','ROAS','New_Bid','Campaign']} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>)}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{tab === 'negatives' &amp;&amp; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="space-y-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="flex justify-between items-center"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;h3 className="font-bold text-red-400"&gt;Bleeders &amp; Isolation&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;button onClick={()=&gt;downloadFile(stats.negatives.map(r=&gt;({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>"Product": "Sponsored Products", "Operation": "Create", "Campaign ID": r.CampaignId, "Ad Group ID": r.AdGroupId,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>"Entity": "Negative Keyword", "Keyword Text": r.Term, "Match Type": "negativeExact", "State": "Enabled"</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>})), "negatives.xlsx")} className="border border-red-500 text-red-400 px-4 py-2 rounded text-sm hover:bg-red-500/10"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>Download Negatives</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Table data={stats.negatives} cols={['Term','Type','Clicks','Spend','ExpOrders','Campaign']} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>)}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{tab === 'bids' &amp;&amp; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="space-y-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="flex justify-between items-center"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;h3 className="font-bold"&gt;Segmented Bids&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;button onClick={generateBidFiles} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-bold text-sm"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>Download Bid Files</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="grid grid-cols-3 gap-4 mb-4 text-center text-sm"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;div className="glass-panel p-2 rounded"&gt;KW: {stats.kwBids.length}&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;div className="glass-panel p-2 rounded"&gt;PT: {stats.ptBids.length}&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;div className="glass-panel p-2 rounded"&gt;Auto: {stats.autoBids.length}&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Table data={[...stats.kwBids, ...stats.ptBids, ...stats.autoBids]} cols={['Targeting','Entity','CPC','NewBid','Reason']} limit={200} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>)}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{tab === 'clusters' &amp;&amp; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="space-y-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="flex justify-between items-center"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;h3 className="font-bold"&gt;Theme Clusters&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;button onClick={()=&gt;addToPayload(stats.topClusters.map(c =&gt; ({Term: c.term, New_Bid: c.roas * 1.5, Campaign: c.bestCampaign})), 'PHRASE')} className="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded text-white font-bold text-sm"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>Prepare for Actions (Phrase)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Table data={stats.topClusters} cols={['term','count','sales','roas','bestCampaign']} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>)}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{tab === 'actions' &amp;&amp; &lt;ActionsTab payload={harvestPayload} setPayload={setHarvestPayload} /&gt;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const ActionsTab = ({ payload, setPayload }) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [skuMap, setSkuMap] = useState({});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [budget, setBudget] = useState(50);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [portfolio, setPortfolio] = useState("");</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const handleCampFile = (e) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const f = e.target.files[0];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const r = new FileReader();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>r.onload = (evt) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const wb = X.read(evt.target.result, {type:'binary'});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const raw = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const map = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const asinMap = {}; // Fallback map: ASIN -&gt; SKU</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// Pass 1: Build Direct Map &amp; ASIN Map from "Product Ad" rows</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>raw.forEach(r =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const ent = r["Entity"] || r["Record Type"];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const camp = r["Campaign"] || r["Campaign Name"];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const sku = r["SKU"] || r["Advertised SKU"];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const asin = r["ASIN"] || r["Advertised ASIN"];</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                        </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>if(ent === "Product Ad" &amp;&amp; camp &amp;&amp; sku) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>map[camp] = sku;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>if(asin) asinMap[asin] = sku;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// Pass 2: Fallback using Regex on Campaign Names</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// Only if direct map missing. Matches patterns like "..._B0X12345_..."</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const asinRegex = /([A-Z0-9]{10})/;<span class="Apple-converted-space"> </span></span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// We only need to check payloads that are missing, but here we construct a lookup tool</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// We can also reverse map from payload campaign names if they match</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>setSkuMap({ direct: map, asins: asinMap });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>alert(`Mapped SKUs from ${Object.keys(map).length} campaigns.`);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>r.readAsBinaryString(f);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const getSku = (campaignName) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(!skuMap.direct) return "SKU_NEEDED";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 1. Direct Match</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(skuMap.direct[campaignName]) return skuMap.direct[campaignName];</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>// 2. Regex Fallback (ASIN in Camp Name)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if(skuMap.asins) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const match = campaignName.match(/([A-Z0-9]{10})/);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(match &amp;&amp; skuMap.asins[match[1]]) return skuMap.asins[match[1]];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return "SKU_NEEDED";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const generateBulk = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const rows = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const date = new Date().toISOString().slice(0,10).replace(/-/g,'');</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const grouped = {};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>payload.forEach(item =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const sku = getSku(item.Campaign);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if(!grouped[sku]) grouped[sku] = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>grouped[sku].push(item);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>Object.keys(grouped).forEach(sku =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const items = grouped[sku];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const matches = { 'EXACT': [], 'PHRASE': [] };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>items.forEach(i =&gt; matches[i.MatchType || 'EXACT'].push(i));</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>['EXACT', 'PHRASE'].forEach(mType =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const subItems = matches[mType];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>if(!subItems.length) return;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const campName = `Harvest_${mType}_${sku}_${date}`;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>const agName = `AG_${mType}_${sku}`;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                        </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>rows.push({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Product": "Sponsored Products", "Entity": "Campaign", "Operation": "Create",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Campaign ID": campName, "Campaign Name": campName, "Start Date": date,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Targeting Type": "MANUAL", "State": "Enabled", "Daily Budget": budget,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Bidding Strategy": "Dynamic bids - down only", "Portfolio ID": portfolio</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>rows.push({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Product": "Sponsored Products", "Entity": "Ad Group", "Operation": "Create",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Campaign ID": campName, "Ad Group ID": agName, "State": "Enabled",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Ad Group Default Bid": 1.0</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>rows.push({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Product": "Sponsored Products", "Entity": "Product Ad", "Operation": "Create",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>"Campaign ID": campName, "Ad Group ID": agName, "SKU": sku, "State": "Enabled"</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>subItems.forEach(i =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>rows.push({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>"Product": "Sponsored Products", "Entity": "Keyword", "Operation": "Create",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>"Campaign ID": campName, "Ad Group ID": agName, "Keyword Text": i.Term,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>"Match Type": mType.toLowerCase(), "Bid": i.New_Bid, "State": "Enabled"</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const ws = X.utils.json_to_sheet(rows);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const wb = X.utils.book_new();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>X.utils.book_append_sheet(wb, ws, "Sheet1");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>X.writeFile(wb, "harvest_creation_bulk.xlsx");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="space-y-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="flex gap-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="glass-panel p-4 rounded-lg flex-1"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;h4 className="font-bold mb-2"&gt;1. Enrich with SKUs&lt;/h4&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p className="text-xs text-slate-400 mb-2"&gt;Upload 'Sponsored Products Campaigns' report to map Campaign -&gt; SKU.&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;input type="file" onChange={handleCampFile} className="text-xs w-full text-slate-400 file:bg-slate-800 file:text-teal-400 file:border-0 file:rounded file:px-2 file:py-1" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="glass-panel p-4 rounded-lg flex-1"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;h4 className="font-bold mb-2"&gt;2. Settings&lt;/h4&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;div className="flex gap-2"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="flex-1"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;label className="text-xs"&gt;Budget&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;input type="number" value={budget} onChange={e=&gt;setBudget(e.target.value)} className="glass-input w-full p-1 rounded" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;div className="flex-1"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;label className="text-xs"&gt;Portfolio ID&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;input type="text" value={portfolio} onChange={e=&gt;setPortfolio(e.target.value)} className="glass-input w-full p-1 rounded" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="glass-panel p-4 rounded-lg"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="flex justify-between mb-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;h4 className="font-bold"&gt;Preview ({payload.length} terms)&lt;/h4&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;button onClick={generateBulk} className="bg-teal-600 hover:bg-teal-500 px-6 py-2 rounded text-white font-bold"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>Generate Bulk File</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="overflow-auto max-h-[300px]"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;table className="w-full text-xs text-left text-slate-400"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;thead className="sticky top-0 bg-slate-800"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>&lt;tr&gt;&lt;th className="p-2"&gt;Term&lt;/th&gt;&lt;th className="p-2"&gt;Source Camp&lt;/th&gt;&lt;th className="p-2"&gt;Mapped SKU&lt;/th&gt;&lt;th className="p-2"&gt;Match&lt;/th&gt;&lt;th className="p-2"&gt;Bid&lt;/th&gt;&lt;/tr&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/thead&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;tbody&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>{payload.map((r,i) =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>&lt;tr key={i} className="border-b border-slate-700"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                            </span>&lt;td className="p-2"&gt;{r.Term}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                            </span>&lt;td className="p-2"&gt;{r.Campaign}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                            </span>&lt;td className="p-2 text-teal-400"&gt;{getSku(r.Campaign)}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                            </span>&lt;td className="p-2"&gt;{r.MatchType}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                            </span>&lt;td className="p-2"&gt;{r.New_Bid}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                        </span>&lt;/tr&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                    </span>))}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;/tbody&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/table&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Creator = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [inputs, setInputs] = useState({skus: '', asins: '', price: 99.0, acos: 20, cvr: 10, budget: 200});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [kws, setKws] = useState([]);</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">            </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const generate = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const baseBid = inputs.price * (inputs.cvr/100) * (inputs.acos/100);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const rows = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const date = new Date().toISOString().slice(0,10).replace(/-/g,'');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const skus = inputs.skus.split(",").map(s=&gt;s.trim()).filter(Boolean);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>if(!skus.length) return alert("Enter SKUs");</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const tactics = ["Auto", "Manual_KW", "Manual_ASIN"];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>tactics.forEach((t, i) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const b = (inputs.budget * ((tactics.length-i)/6)).toFixed(2); // Simple weighted</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>const cName = `Launch_${skus[0]}_${t}_${date}`;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                     </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>rows.push({</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>"Product": "Sponsored Products", "Entity": "Campaign", "Operation": "Create",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>"Campaign ID": cName, "Campaign Name": cName, "Daily Budget": b, "State": "Enabled"</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const ws = X.utils.json_to_sheet(rows);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>const wb = X.utils.book_new();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>X.utils.book_append_sheet(wb, ws, "Sheet1");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>X.writeFile(wb, "creator_launch.xlsx");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="glass-panel p-8 rounded-xl max-w-4xl mx-auto space-y-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;h2 className="text-2xl font-bold"&gt;Campaign Creator&lt;/h2&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div className="grid grid-cols-2 gap-4"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;Input label="SKUs" type="text" val={inputs.skus} set={v=&gt;setInputs({...inputs, skus:v})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;Input label="Price" type="number" val={inputs.price} set={v=&gt;setInputs({...inputs, price:v})} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;button onClick={generate} className="w-full bg-teal-600 py-3 rounded font-bold"&gt;Generate Launch Files&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Home = ({setPage}) =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">             </span>&lt;div className="text-center pt-20 space-y-8"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500"&gt;S2C LaunchPad V3&lt;/h1&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;p className="text-xl text-slate-400"&gt;Complete 1:1 Logic Port of Python Suite&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="flex justify-center gap-6"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;button onClick={()=&gt;setPage('optimizer')} className="glass-panel hover:border-teal-400 p-8 rounded-xl text-left w-64 transition-all"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="text-4xl mb-4"&gt;📊&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="font-bold text-xl"&gt;Optimizer&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="text-sm text-slate-400"&gt;Harvest, Negate, Optimize&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;button onClick={()=&gt;setPage('creator')} className="glass-panel hover:border-blue-400 p-8 rounded-xl text-left w-64 transition-all"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="text-4xl mb-4"&gt;🚀&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="font-bold text-xl"&gt;Creator&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div className="text-sm text-slate-400"&gt;Launch New Campaigns&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">             </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// --- Shared UI Components ---</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const NavBtn = ({id, label, icon, active, setPage}) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">             </span>const Icon = Icons[icon];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">             </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>&lt;button onClick={()=&gt;setPage(id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${active===id ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>{Icon &amp;&amp; &lt;Icon /&gt;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                     </span>&lt;span&gt;{label}&lt;/span&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                 </span>&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">             </span>)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Input = ({label, type, val, set, min, max, step, children}) =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;label className="block text-xs text-slate-400 mb-1"&gt;{label}&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>{type === 'select' ?<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;select value={val} onChange={e=&gt;set(e.target.value)} className="glass-input w-full p-2 rounded text-sm"&gt;{children}&lt;/select&gt; :</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;input type={type} value={val} onChange={e=&gt;set(e.target.value)} min={min} max={max} step={step} className="glass-input w-full p-2 rounded text-sm" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const MetricCard = ({label, val, color="text-white"}) =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;div className="glass-panel p-4 rounded-lg text-center"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className="text-xs text-slate-500 uppercase font-bold mb-1"&gt;{label}&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div className={`text-2xl font-bold ${color}`}&gt;{val}&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Table = ({data, cols, limit=100}) =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;div className="overflow-auto border border-slate-700 rounded-lg max-h-[500px]"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;table className="w-full text-sm text-left text-slate-400"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;thead className="bg-slate-800 text-slate-200 sticky top-0"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;tr&gt;{cols.map(c =&gt; &lt;th key={c} className="p-3 capitalize"&gt;{c.replace('_',' ')}&lt;/th&gt;)}&lt;/tr&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/thead&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;tbody&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>{data.slice(0, limit).map((r,i) =&gt; (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;tr key={i} className="border-b border-slate-800 hover:bg-slate-800/50"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>{cols.map(c =&gt; &lt;td key={c} className="p-3 max-w-[200px] truncate"&gt;{typeof r[c] === 'number' ? r[c].toFixed(c.includes('ROAS')?2:2) : r[c]}&lt;/td&gt;)}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/tr&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>))}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/tbody&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/table&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const root = ReactDOM.createRoot(document.getElementById('root'));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>root.render(&lt;App /&gt;);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+</body>
+</html>
