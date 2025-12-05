@@ -2500,115 +2500,155 @@ elif st.session_state['current_module'] == 'optimizer':
     }
 
     # ═══════════════════════════════════════════════════════════════
-    # SIDEBAR: CENTRALIZED DATA MANAGER
+    # LANDING PAGE: FILE UPLOAD INTERFACE
     # ═══════════════════════════════════════════════════════════════
-    with st.sidebar:
-        st.header("📁 Data Manager")
-        st.caption("Upload all required files in one place")
-        
-        # Initialize session state for data files
-        if 'data_files' not in st.session_state:
-            st.session_state.data_files = {
-                'main_report': None,
-                'main_report_name': None,
-                'id_mapping': None,
-                'id_mapping_name': None,
-                'sku_mapping': None,
-                'sku_mapping_name': None
-            }
+    
+    # Initialize session state for data files
+    if 'data_files' not in st.session_state:
+        st.session_state.data_files = {
+            'main_report': None,
+            'main_report_name': None,
+            'id_mapping': None,
+            'id_mapping_name': None,
+            'sku_mapping': None,
+            'sku_mapping_name': None
+        }
+    
+    # Check if main report is uploaded
+    if not st.session_state.data_files['main_report']:
+        # LANDING PAGE - Show upload interface
+        st.markdown("## 📁 Upload Data Files")
+        st.markdown("Upload your files to begin analysis")
         
         st.divider()
         
-        # 1. MAIN REPORT (Required)
-        st.subheader("✅ Main Report")
-        st.caption("**Required** for all analysis")
-        main_file = st.file_uploader(
-            "Search Term Report",
-            type=["csv", "xlsx"],
-            key="sidebar_main",
-            help="Download from Amazon Ads → Reports → Search Term Report"
-        )
+        # Main Report (Required)
+        st.markdown("### ✅ Main Report (Required)")
+        st.caption("**Search Term Report** from Amazon Ads Console")
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            main_file = st.file_uploader(
+                "Upload 'SP Search Term Report'",
+                type=["csv", "xlsx"],
+                key="landing_main",
+                help="Download from: Amazon Ads → Reports → Search Term Report"
+            )
+        with col2:
+            if main_file:
+                st.success("✓ Uploaded")
+                st.caption(f"{main_file.size / 1024:.1f} KB")
         
         if main_file:
             st.session_state.data_files['main_report'] = main_file
             st.session_state.data_files['main_report_name'] = main_file.name
-            st.success(f"✓ {main_file.name}")
-            st.caption(f"Size: {main_file.size / 1024:.1f} KB")
-        else:
-            if st.session_state.data_files['main_report_name']:
-                st.info(f"📄 {st.session_state.data_files['main_report_name']}")
-            else:
-                st.warning("⚠️ Not uploaded")
         
         st.divider()
         
-        # 2. ID MAPPING (Optional - for Bids)
-        st.subheader("🆔 ID Mapping")
-        st.caption("**For:** Bid Updates")
-        id_file = st.file_uploader(
-            "Bulk Upload Template",
-            type=["csv", "xlsx"],
-            key="sidebar_ids",
-            help="Download from Amazon Ads → Bulk Operations → Download → Sponsored Products Campaigns"
-        )
+        # ID Mapping (Optional)
+        st.markdown("### 🆔 ID Mapping (Optional)")
+        st.caption("**For:** Bid Updates with Keyword/Product Targeting IDs")
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            id_file = st.file_uploader(
+                "Upload Bulk Upload Template",
+                type=["csv", "xlsx"],
+                key="landing_ids",
+                help="Download from: Amazon Ads → Bulk Operations → Download → Sponsored Products Campaigns"
+            )
+        with col2:
+            if id_file:
+                st.success("✓ Uploaded")
+                st.caption(f"{id_file.size / 1024:.1f} KB")
+            else:
+                st.info("⚠️ Optional")
         
         if id_file:
             st.session_state.data_files['id_mapping'] = id_file
             st.session_state.data_files['id_mapping_name'] = id_file.name
-            st.success(f"✓ {id_file.name}")
-            st.caption(f"Size: {id_file.size / 1024:.1f} KB")
-        else:
-            if st.session_state.data_files['id_mapping_name']:
-                st.info(f"📄 {st.session_state.data_files['id_mapping_name']}")
-            else:
-                st.info("⚠️ Optional (recommended for bids)")
-                with st.expander("ℹ️ How to get"):
-                    st.markdown("""
-                    **Amazon Ads Console:**
-                    1. Go to **Bulk Operations**
-                    2. Click **Download**
-                    3. Select **Sponsored Products Campaigns**
-                    4. Download the file
-                    
-                    **Contains:** Keyword ID, Product Targeting ID, Campaign ID, Ad Group ID
-                    """)
+        
+        with st.expander("ℹ️ How to get ID Mapping file"):
+            st.markdown("""
+            **Amazon Ads Console:**
+            1. Go to **Bulk Operations**
+            2. Click **Download**
+            3. Select **Sponsored Products Campaigns**
+            4. Download the file
+            
+            **Contains:** Keyword ID, Product Targeting ID, Campaign ID, Ad Group ID
+            
+            **Why needed:** Required for UPDATE operations on existing keywords/targets
+            """)
         
         st.divider()
         
-        # 3. SKU MAPPING (Optional - for Harvest)
-        st.subheader("🏷️ SKU Mapping")
-        st.caption("**For:** Harvest Campaigns")
-        sku_file = st.file_uploader(
-            "Purchased Product Report",
-            type=["csv", "xlsx"],
-            key="sidebar_skus",
-            help="Download from Amazon Ads → Reports → Purchased Product Report"
-        )
+        # SKU Mapping (Optional)
+        st.markdown("### 🏷️ SKU Mapping (Optional)")
+        st.caption("**For:** Harvest Campaigns with automatic SKU assignment")
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            sku_file = st.file_uploader(
+                "Upload Purchased Product Report",
+                type=["csv", "xlsx"],
+                key="landing_skus",
+                help="Download from: Amazon Ads → Reports → Purchased Product Report"
+            )
+        with col2:
+            if sku_file:
+                st.success("✓ Uploaded")
+                st.caption(f"{sku_file.size / 1024:.1f} KB")
+            else:
+                st.info("⚠️ Optional")
         
         if sku_file:
             st.session_state.data_files['sku_mapping'] = sku_file
             st.session_state.data_files['sku_mapping_name'] = sku_file.name
-            st.success(f"✓ {sku_file.name}")
-            st.caption(f"Size: {sku_file.size / 1024:.1f} KB")
-        else:
-            if st.session_state.data_files['sku_mapping_name']:
-                st.info(f"📄 {st.session_state.data_files['sku_mapping_name']}")
-            else:
-                st.info("⚠️ Optional (prevents SKU_NEEDED errors)")
-                with st.expander("ℹ️ How to get"):
-                    st.markdown("""
-                    **Amazon Ads Console:**
-                    1. Go to **Reports**
-                    2. Select **Purchased Product Report**
-                    3. Download the file
-                    
-                    **Contains:** Advertised SKU, ASIN mapping
-                    """)
+        
+        with st.expander("ℹ️ How to get SKU Mapping file"):
+            st.markdown("""
+            **Amazon Ads Console:**
+            1. Go to **Reports**
+            2. Select **Purchased Product Report**
+            3. Download the file
+            
+            **Contains:** Advertised SKU, ASIN mapping
+            
+            **Why needed:** Prevents SKU_NEEDED errors in harvest campaigns
+            """)
         
         st.divider()
         
-        # Clear all button
-        if st.button("🗑️ Clear All Files", use_container_width=True):
+        # Continue button
+        if main_file:
+            if st.button("✅ Continue to Analysis", type="primary", use_container_width=True):
+                st.rerun()
+        else:
+            st.warning("⚠️ Please upload the Main Report to continue")
+        
+        # Stop here - don't show tabs until main report is uploaded
+        st.stop()
+    
+    # ═══════════════════════════════════════════════════════════════
+    # MAIN APPLICATION (shown after upload)
+    # ═══════════════════════════════════════════════════════════════
+    
+    # Show upload status banner
+    st.success(f"✅ **Main Report:** {st.session_state.data_files['main_report_name']}")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.session_state.data_files['id_mapping_name']:
+            st.info(f"🆔 **ID Mapping:** {st.session_state.data_files['id_mapping_name']}")
+        else:
+            st.warning("🆔 **ID Mapping:** Not uploaded")
+    
+    with col2:
+        if st.session_state.data_files['sku_mapping_name']:
+            st.info(f"🏷️ **SKU Mapping:** {st.session_state.data_files['sku_mapping_name']}")
+        else:
+            st.warning("🏷️ **SKU Mapping:** Not uploaded")
+    
+    with col3:
+        if st.button("🔄 Upload Different Files"):
             st.session_state.data_files = {
                 'main_report': None,
                 'main_report_name': None,
@@ -2618,9 +2658,11 @@ elif st.session_state['current_module'] == 'optimizer':
                 'sku_mapping_name': None
             }
             st.rerun()
-
-    # Use sidebar file if available, otherwise fall back to main uploader
-    upl = st.session_state.data_files['main_report'] or st.file_uploader("Upload 'SP Search Term Report' (from Bulk Download)", type=["csv", "xlsx"])
+    
+    st.divider()
+    
+    # Use the uploaded main report
+    upl = st.session_state.data_files['main_report']
     
     if upl:
         with st.spinner("Processing Segmentation & Aggregation..."):
