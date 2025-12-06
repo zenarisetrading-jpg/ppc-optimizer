@@ -1,1 +1,7 @@
 .streamlit/secrets.toml
+
+firebase_credentials.json
+firebase-credentials.json
+**/__pycache__
+node_modules/
+.DS_Store

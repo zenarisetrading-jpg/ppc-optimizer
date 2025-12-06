@@ -19,13 +19,19 @@ try:
     
     from firebase_config import (
         FirebaseDB, save_upload_snapshot, get_previous_upload, 
-        get_velocity_comparison, get_historical_data, get_weekly_trends,
-        reset_database, list_accounts, get_upload_count
+        get_velocity_comparison, get_historical_uploads, get_weekly_trends,
+        reset_database, reset_account, list_accounts, get_upload_count,
+        get_account_info, get_top_movers_chart_data
     )
     FIREBASE_MODULE_AVAILABLE = True
 except ImportError:
     FIREBASE_MODULE_AVAILABLE = False
     FirebaseDB = None
+    
+    # Stub functions when Firebase not available
+    def reset_account(account_id): return False, "Firebase not available"
+    def get_account_info(account_id): return {}
+    def get_top_movers_chart_data(df, n, m): return {'rising': pd.DataFrame(), 'falling': pd.DataFrame()}
 
 # ==========================================
 # CREATOR MODULE CONSTANTS
@@ -2191,8 +2197,8 @@ def run_optimizer_logic(file_content, config):
     
     # Keyword velocity (check if previous data exists in session state)
     previous_df = st.session_state.get('previous_upload_df', None)
-    velocity_df = track_keyword_velocity(df, previous_df)
-    # Store current as previous for next upload
+    local_velocity_df = track_keyword_velocity(df, previous_df)
+    # Store current as previous for next upload (fallback)
     st.session_state['previous_upload_df'] = df.copy()
     
     # FIX: Add harvest_df to bids_dict BEFORE simulation so it can access Survivors
@@ -2206,30 +2212,35 @@ def run_optimizer_logic(file_content, config):
     # Add date info to stats for UI display
     stats['date_info'] = date_info
     
-    # Firebase: Integration Logic
-    velocity_df = pd.DataFrame()
-    account_id = None
+    # Firebase: Integration Logic (FIXED - no longer overwrites velocity_df blindly)
+    velocity_df = local_velocity_df  # Start with local calculation
+    account_id = 'default'
+    firebase_save_msg = None
     
-    if FIREBASE_MODULE_AVAILABLE:
+    if FIREBASE_MODULE_AVAILABLE and FirebaseDB:
         try:
             # Auto-detect account ID from data for isolation
             account_id = FirebaseDB._get_account_id(df)
             
-            # 1. Get comparison with previous upload
-            # Ensure we check session state init first
+            # Only use Firebase if initialized
             if st.session_state.get('firebase_initialized'):
-                velocity_df = get_velocity_comparison(df, account_id)
-            
-                # 2. Save CURRENT upload snapshot only if we have initialized
-                # Saves metadata including account_id
-                save_upload_snapshot(df, date_info, stats, account_id)
+                # 1. Get comparison with previous upload (WoW from Firebase)
+                firebase_velocity = get_velocity_comparison(df, account_id)
+                
+                # Use Firebase velocity if it has data, otherwise keep local
+                if not firebase_velocity.empty and 'Orders_Previous' in firebase_velocity.columns:
+                    if firebase_velocity['Orders_Previous'].sum() > 0:
+                        velocity_df = firebase_velocity
+                
+                # 2. Save CURRENT upload snapshot
+                success, firebase_save_msg = save_upload_snapshot(df, date_info, stats, account_id)
+                if not success:
+                    print(f"Firebase save warning: {firebase_save_msg}")
                 
         except Exception as e:
             print(f"Firebase processing error: {e}")
             st.session_state['firebase_error'] = str(e)
-            
-            # Fallback for display if save failed but calc worked? 
-            # If get_velocity failed, velocity_df is empty.
+            # Keep local velocity_df as fallback
     
     outputs = {
         'Survivors': harvest_df, 
@@ -2240,6 +2251,7 @@ def run_optimizer_logic(file_content, config):
         'Simulation': simulation_results,
         'DateInfo': date_info,
         'account_id': account_id,
+        'firebase_save_msg': firebase_save_msg,
         **bids_dict
     }
     return outputs, None, df, stats
@@ -3354,132 +3366,397 @@ elif st.session_state['current_module'] == 'optimizer':
                 st.subheader("📈 Keyword Velocity & Trends")
                 st.markdown("""
                 <div class='tab-description'>
-                Track keyword performance trends over time. Compare current upload vs previous upload.
-                Catch rising stars before competitors and kill declining keywords early.
+                Track keyword performance <b>week-over-week</b>. Compare current upload vs previous week.<br>
+                🎯 <b>Rising</b> = Increase bids | ⚠️ <b>Falling</b> = Investigate/decrease bids
                 </div>
                 """, unsafe_allow_html=True)
                 
                 velocity_df = outputs.get('Velocity', pd.DataFrame())
+                account_id = outputs.get('account_id', 'default')
                 
-                # Robust Firebase check
+                # ─────────────────────────────────────────
+                # FIREBASE STATUS & CONTROLS
+                # ─────────────────────────────────────────
                 is_connected = False
                 if FIREBASE_MODULE_AVAILABLE and FirebaseDB:
                     is_connected = FirebaseDB.is_available()
                 
-                # Firebase controls (Show if connected OR if we want to show it's disconnected)
-                if FIREBASE_MODULE_AVAILABLE:
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    with col1:
-                        if is_connected:
-                            upload_count = get_upload_count()
-                            st.success(f"✅ Firebase Connected | {upload_count} uploads stored")
-                        else:
-                            st.error(f"⚠️ Firebase Not Connected ({FirebaseDB.get_last_error()})")
-                    with col2:
-                        if is_connected:
-                            accounts = list_accounts()
-                            if accounts:
-                                st.caption(f"Accounts: {', '.join(accounts)}")
-                    with col3:
-                        if is_connected:
-                            if st.button("🗑️ Reset DB", help="Clear all historical data"):
-                                reset_database()
-                                st.warning("Database cleared! Refresh page.")
-                                st.rerun()
+                col1, col2, col3 = st.columns([2, 2, 1])
                 
-                if not velocity_df.empty:
-                    # check for stale data (missing CVR columns)
-                    if 'CVR_Current_%' not in velocity_df.columns:
-                        st.warning("⚠️ **Update Detected:** You are viewing an old analysis. Please **Refreshing the page** (Cmd+R) and re-upload your file to see the new CVR metrics and trends.")
+                with col1:
+                    if is_connected:
+                        upload_count = get_upload_count(account_id) if account_id else 0
+                        st.success(f"✅ Firestore Connected | Account: **{account_id}** | {upload_count} weeks stored")
+                    elif FIREBASE_MODULE_AVAILABLE:
+                        # Get detailed error info
+                        error = FirebaseDB.get_last_error() if FirebaseDB else "Module not loaded"
+                        session_error = st.session_state.get('firebase_error', None)
+                        
+                        if error and error != "Unknown error":
+                            st.error(f"⚠️ Firebase Error: {error}")
+                        elif session_error:
+                            st.error(f"⚠️ Firebase Error: {session_error}")
+                        else:
+                            st.warning("⚠️ Firebase not initialized. Check secrets.toml configuration.")
+                        
+                        # Show debug logs
+                        with st.expander("🔧 Debug Logs & Troubleshooting"):
+                            # Show debug logs if available
+                            if hasattr(FirebaseDB, 'get_debug_logs'):
+                                logs = FirebaseDB.get_debug_logs()
+                                if logs:
+                                    st.code('\n'.join(logs[-20:]), language='text')  # Last 20 logs
+                            
+                            # Show status
+                            if hasattr(FirebaseDB, 'get_status'):
+                                status = FirebaseDB.get_status()
+                                st.json(status)
+                            
+                            st.markdown("""
+                            **Check your `.streamlit/secrets.toml`:**
+                            ```toml
+                            [firebase]
+                            credentials_file = "firebase_credentials.json"
+                            ```
+                            
+                            **Common issues:**
+                            1. `firebase_credentials.json` file not in project root
+                            2. File permissions issue
+                            3. Firestore not enabled in Firebase Console
+                            4. Service account doesn't have Firestore access
+                            
+                            **To enable Firestore:**
+                            1. Go to Firebase Console → Build → Firestore Database
+                            2. Click "Create Database"
+                            3. Choose "Test mode" for now
+                            """)
+                    else:
+                        st.warning("📊 Using session storage (data lost on refresh)")
+                
+                with col2:
+                    if is_connected:
+                        accounts = list_accounts()
+                        if accounts and len(accounts) > 1:
+                            st.caption(f"All accounts: {', '.join(accounts)}")
+                
+                with col3:
+                    if is_connected:
+                        with st.popover("🗑️ Reset Data"):
+                            st.warning("⚠️ This will delete historical data!")
+                            
+                            reset_option = st.radio(
+                                "What to reset?",
+                                ["This account only", "ALL accounts"],
+                                key="reset_option"
+                            )
+                            
+                            confirm = st.checkbox("I understand this cannot be undone", key="reset_confirm")
+                            
+                            if st.button("🗑️ Delete Data", disabled=not confirm, type="primary", key="reset_btn"):
+                                if reset_option == "This account only":
+                                    success, msg = reset_account(account_id)
+                                else:
+                                    success, msg = reset_database()
+                                
+                                if success:
+                                    st.success(msg)
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                else:
+                                    st.error(msg)
+                
+                st.divider()
+                
+                # ─────────────────────────────────────────
+                # VELOCITY DATA DISPLAY
+                # ─────────────────────────────────────────
+                
+                # Check if we have comparison data
+                has_comparison = (
+                    not velocity_df.empty and 
+                    'Orders_Previous' in velocity_df.columns and 
+                    velocity_df['Orders_Previous'].sum() > 0
+                )
+                
+                if has_comparison:
+                    # Note about filtering
+                    st.caption("📊 **Volume Drivers Only:** Keywords with 10+ total clicks (current + previous week)")
                     
-                    # Check if this is first upload or we have comparison data
-                    if 'Orders_Previous' in velocity_df.columns and velocity_df['Orders_Previous'].sum() > 0:
-                        # We have comparison data
-                        rising = velocity_df[velocity_df['Trend'].str.contains('Rising|Up', case=False, na=False)]
-                        falling = velocity_df[velocity_df['Trend'].str.contains('Falling|Down', case=False, na=False)]
+                    # ─────────────────────────────────────────
+                    # SUMMARY METRICS
+                    # ─────────────────────────────────────────
+                    
+                    # Filter out "new" keywords (999% = no previous data)
+                    real_changes = velocity_df[velocity_df['Orders_Change_%'].abs() < 500].copy() if 'Orders_Change_%' in velocity_df.columns else velocity_df.copy()
+                    
+                    rising = real_changes[real_changes['Orders_Change_%'] > 10] if 'Orders_Change_%' in real_changes.columns else pd.DataFrame()
+                    falling = real_changes[real_changes['Orders_Change_%'] < -10] if 'Orders_Change_%' in real_changes.columns else pd.DataFrame()
+                    stable = real_changes[
+                        (real_changes['Orders_Change_%'] >= -10) & 
+                        (real_changes['Orders_Change_%'] <= 10)
+                    ] if 'Orders_Change_%' in real_changes.columns else pd.DataFrame()
+                    new_kws = velocity_df[velocity_df['Orders_Change_%'] >= 500] if 'Orders_Change_%' in velocity_df.columns else pd.DataFrame()
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("📈 Rising", len(rising), help="Orders up >10%")
+                    col2.metric("📉 Falling", len(falling), help="Orders down >10%")
+                    col3.metric("→ Stable", len(stable), help="Within ±10%")
+                    col4.metric("🆕 New", len(new_kws), help="No previous data")
+                    
+                    st.divider()
+                    
+                    # ─────────────────────────────────────────
+                    # TOP MOVERS BAR CHARTS
+                    # ─────────────────────────────────────────
+                    
+                    chart_col1, chart_col2 = st.columns(2)
+                    
+                    with chart_col1:
+                        st.markdown("### 📈 Top 15 Rising Keywords")
+                        st.caption("🎯 Sorted by orders GAINED (impact)")
                         
-                        col1, col2, col3, col4 = st.columns(4)
-                        col1.metric("📈 Rising", len(rising), help="Keywords with increasing orders")
-                        col2.metric("📉 Falling", len(falling), help="Keywords with declining orders")
-                        col3.metric("→ Stable", len(velocity_df) - len(rising) - len(falling))
-                        col4.metric("Total Tracked", len(velocity_df))
+                        # Sort by absolute order gain (Orders_Delta) for impact
+                        if not rising.empty:
+                            if 'Orders_Delta' in rising.columns:
+                                top_rising = rising.nlargest(15, 'Orders_Delta')
+                            else:
+                                rising_copy = rising.copy()
+                                rising_copy['_delta'] = rising_copy['Orders_Current'] - rising_copy['Orders_Previous']
+                                top_rising = rising_copy.nlargest(15, '_delta')
+                        else:
+                            top_rising = pd.DataFrame()
                         
-                        st.divider()
+                        if not top_rising.empty:
+                            # Show orders gained in the bar
+                            orders_gained = top_rising['Orders_Current'] - top_rising['Orders_Previous']
+                            
+                            fig_rising = go.Figure()
+                            
+                            fig_rising.add_trace(go.Bar(
+                                x=orders_gained,
+                                y=top_rising['Search Term'].str[:30],
+                                orientation='h',
+                                marker_color='#22c55e',
+                                text=[f"+{int(x)} orders" for x in orders_gained],
+                                textposition='outside',
+                                hovertemplate=(
+                                    "<b>%{y}</b><br>" +
+                                    "Orders Gained: +%{x}<br>" +
+                                    "Previous: %{customdata[0]}<br>" +
+                                    "Current: %{customdata[1]}<br>" +
+                                    "<extra></extra>"
+                                ),
+                                customdata=list(zip(top_rising['Orders_Previous'], top_rising['Orders_Current']))
+                            ))
+                            
+                            fig_rising.update_layout(
+                                height=400,
+                                margin=dict(l=10, r=60, t=10, b=10),
+                                xaxis_title="Orders Gained",
+                                yaxis=dict(autorange="reversed"),
+                                showlegend=False
+                            )
+                            
+                            st.plotly_chart(fig_rising, use_container_width=True)
+                        else:
+                            st.info("No rising keywords this week")
+                    
+                    with chart_col2:
+                        st.markdown("### 📉 Top 15 Falling Keywords")
+                        st.caption("⚠️ Sorted by orders LOST (impact), not just %")
                         
-                        # Display columns - dynamically adapt if CVR is missing (graceful degradation)
+                        # FIXED: Sort by absolute order loss (Orders_Delta) not percentage
+                        # This shows keywords that ACTUALLY lost volume, not just 1→0 = -100%
+                        if not falling.empty:
+                            if 'Orders_Delta' in falling.columns:
+                                # Sort by most orders lost (most negative first)
+                                top_falling = falling.nsmallest(15, 'Orders_Delta')
+                            else:
+                                # Fallback: calculate delta if column missing
+                                falling_copy = falling.copy()
+                                falling_copy['_delta'] = falling_copy['Orders_Current'] - falling_copy['Orders_Previous']
+                                top_falling = falling_copy.nsmallest(15, '_delta')
+                        else:
+                            top_falling = pd.DataFrame()
+                        
+                        if not top_falling.empty:
+                            # Show orders lost in the bar (more meaningful than %)
+                            orders_lost = top_falling['Orders_Current'] - top_falling['Orders_Previous']
+                            
+                            fig_falling = go.Figure()
+                            
+                            fig_falling.add_trace(go.Bar(
+                                x=orders_lost,
+                                y=top_falling['Search Term'].str[:30],
+                                orientation='h',
+                                marker_color='#ef4444',
+                                text=[f"{int(x)} orders" for x in orders_lost],
+                                textposition='outside',
+                                hovertemplate=(
+                                    "<b>%{y}</b><br>" +
+                                    "Orders Lost: %{x}<br>" +
+                                    "Previous: %{customdata[0]}<br>" +
+                                    "Current: %{customdata[1]}<br>" +
+                                    "<extra></extra>"
+                                ),
+                                customdata=list(zip(top_falling['Orders_Previous'], top_falling['Orders_Current']))
+                            ))
+                            
+                            fig_falling.update_layout(
+                                height=400,
+                                margin=dict(l=10, r=50, t=10, b=10),
+                                xaxis_title="Orders Lost",
+                                yaxis=dict(autorange="reversed"),
+                                showlegend=False
+                            )
+                            
+                            st.plotly_chart(fig_falling, use_container_width=True)
+                        else:
+                            st.info("No falling keywords this week")
+                    
+                    st.divider()
+                    
+                    # ─────────────────────────────────────────
+                    # MULTI-WEEK TRENDS (if 4+ weeks available)
+                    # ─────────────────────────────────────────
+                    
+                    if is_connected:
+                        weeks_stored = get_upload_count(account_id) if account_id else 0
+                        if weeks_stored >= 4:
+                            st.markdown("### 📊 4-Week Trend Analysis")
+                            st.caption("Track keyword performance over the last 4 weeks")
+                            
+                            try:
+                                trends_df = get_weekly_trends(df_opt, account_id, num_weeks=4)
+                                
+                                if not trends_df.empty:
+                                    # Show trend table
+                                    display_cols = ['Search Term', 'Current']
+                                    for i in range(1, 5):
+                                        col_name = f'W{i}_Orders'
+                                        if col_name in trends_df.columns:
+                                            display_cols.append(col_name)
+                                    if 'Trend_%' in trends_df.columns:
+                                        display_cols.append('Trend_%')
+                                    
+                                    trends_display = trends_df[
+                                        [c for c in display_cols if c in trends_df.columns]
+                                    ].head(15)
+                                    
+                                    st.dataframe(
+                                        trends_display,
+                                        use_container_width=True,
+                                        hide_index=True,
+                                        column_config={
+                                            'Trend_%': st.column_config.NumberColumn(
+                                                'Trend %',
+                                                format="%.1f%%"
+                                            )
+                                        }
+                                    )
+                                else:
+                                    st.info("Not enough data for 4-week trends yet")
+                            except Exception as e:
+                                st.warning(f"Could not load trends: {e}")
+                            
+                            st.divider()
+                    
+                    # ─────────────────────────────────────────
+                    # DETAILED DATA TABLE
+                    # ─────────────────────────────────────────
+                    
+                    with st.expander("📋 View Full Velocity Data", expanded=False):
                         display_cols = [
                             'Search Term', 'Orders_Current', 'Orders_Previous', 'Orders_Change_%',
-                            'CVR_Current_%', 'CVR_Previous_%', 'CVR_Change', 'Spend', 'Trend'
+                            'CVR_Current_%', 'CVR_Previous_%', 'CVR_Change',
+                            'Spend', 'Sales', 'Trend'
                         ]
                         display_cols = [c for c in display_cols if c in velocity_df.columns]
                         
-                        # Show top rising
-                        if not rising.empty:
-                            st.markdown("### 📈 TOP 15 RISING KEYWORDS")
-                            st.markdown("*🎯 Increase bids to capture more traffic on these winners*")
-                            top_rising = rising.head(15)
-                            st.dataframe(
-                                top_rising[display_cols],
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                        
-                        st.divider()
-                        
-                        # Show top falling
-                        if not falling.empty:
-                            st.markdown("### 📉 TOP 15 FALLING KEYWORDS")
-                            st.markdown("*⚠️ Consider decreasing bids or investigate quality issues*")
-                            top_falling = falling.sort_values('Orders_Change_%', ascending=True).head(15)
-                            st.dataframe(
-                                top_falling[display_cols],
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                        
-                        st.divider()
-                        
-                        # 4-Week Trend Analysis (Only show if connected)
-                        if is_connected:
-                            st.markdown("### 📅 4-Week Trend Analysis")
-                            st.markdown("*Performance of top keywords over the last 4 uploads*")
-                            
-                            # Only calculate if we have the function available
-                            if 'get_weekly_trends' in globals():
-                                trend_df = get_weekly_trends(outputs['Velocity'], weeks=4)
-                                if not trend_df.empty:
-                                    st.dataframe(trend_df, use_container_width=True, hide_index=True)
-                                else:
-                                    st.caption("Not enough historical data for 4-week trends (requires 3+ uploads).")
-                        
-                        st.divider()
-                        st.markdown("### 📥 Download Full Velocity Report")
-                        st.download_button(
-                            "Download Velocity Report",
-                            to_excel_download(velocity_df, "velocity"),
-                            "keyword_velocity.xlsx",
-                            use_container_width=True
+                        st.dataframe(
+                            velocity_df[display_cols],
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                'Orders_Change_%': st.column_config.NumberColumn(
+                                    'Orders Δ%', format="%.1f%%"
+                                ),
+                                'CVR_Current_%': st.column_config.NumberColumn(
+                                    'CVR Now', format="%.2f%%"
+                                ),
+                                'CVR_Previous_%': st.column_config.NumberColumn(
+                                    'CVR Prev', format="%.2f%%"
+                                ),
+                                'CVR_Change': st.column_config.NumberColumn(
+                                    'CVR Δ', format="%.2f"
+                                ),
+                                'Spend': st.column_config.NumberColumn(
+                                    'Spend', format="$%.2f"
+                                ),
+                                'Sales': st.column_config.NumberColumn(
+                                    'Sales', format="$%.2f"
+                                )
+                            }
                         )
+                    
+                    # Download
+                    st.download_button(
+                        "📥 Download Velocity Report",
+                        to_excel_download(velocity_df, "velocity"),
+                        f"velocity_report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        use_container_width=True
+                    )
+                    
+                    # Help section
+                    with st.expander("ℹ️ How Velocity Tracking Works"):
+                        st.markdown("""
+                        ### Week-over-Week Comparison
                         
-                        # Multi-account explanation
-                        with st.expander("ℹ️ Multi-Account & Advanced Usage"):
-                            st.markdown("""
-                            **How Firebase handles multiple accounts:**
-                            - Account ID is auto-detected from campaign name prefix 
-                            - Each account's data is stored separately
-                            - To compare different geos/periods: Click "Reset DB" above to clear history and start fresh
-                            """)
-                    else:
-                        # First upload - no comparison yet
-                        st.info(f"""
-                        📊 **First Upload Detected**
-                        velocity tracking requires at least 2 uploads to show trends.
-                        Your current data has been stored. Upload a new report next week to see comparison.
+                        **Trend Categories:**
+                        - 📈 **Rising** (+10%+ orders)
+                        - 📉 **Falling** (-10%+ orders)
+                        - → **Stable** (within ±10%)
+                        - 🆕 **New** (no previous data)
                         
-                        Current keywords tracked: {len(velocity_df):,}
+                        **Key Metrics:**
+                        - **Orders Change %** - Week-over-week order volume change
+                        - **CVR** - Conversion Rate (Orders ÷ Clicks × 100)
+                        
+                        **Action Recommendations:**
+                        - 📈 **Rising** → Increase bids to capture more traffic
+                        - 📉 **Falling** → Investigate (competition? listing issue?)
+                        
+                        ### Multi-Account Support
+                        Account ID is auto-detected from campaign naming convention.
+                        To start fresh: Click "🗑️ Reset Data" above.
                         """)
+                    
                 else:
-                    st.warning("No velocity data available.")
+                    # ─────────────────────────────────────────
+                    # FIRST UPLOAD - NO COMPARISON YET
+                    # ─────────────────────────────────────────
+                    
+                    kw_count = len(velocity_df) if not velocity_df.empty else 0
+                    
+                    st.info(f"""
+                    ### 📊 First Upload Detected
+                    
+                    Velocity tracking requires **at least 2 weekly uploads** to show trends.
+                    
+                    **Current Status:**
+                    - ✅ Your data has been saved
+                    - 📅 Upload a new Search Term Report **next week** to see:
+                      - Rising keywords (↑ orders increasing)
+                      - Falling keywords (↓ orders declining)  
+                      - CVR changes
+                      - Week-over-week bar charts
+                    
+                    **Keywords tracked:** {kw_count:,}
+                    """)
+                    
+                    if is_connected:
+                        st.success(f"✅ Data saved to Firebase for account: **{account_id}**")
+            
             
             with t8:
                 st.subheader("🎯 Bid Change Simulation & Forecast")
